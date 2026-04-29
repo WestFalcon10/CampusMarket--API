@@ -23,3 +23,21 @@ exports.getAllListings = async (req, res) => {
         res.status(500).json({ error: "Server error fetching listings" });
     }
 };
+// listingsRoutes.js
+const express = require('express');
+const router = express.Router();
+const listingsController = require('./listingsController');
+
+// CREATE: Route to add a new listing [cite: 119]
+router.post('/add', listingsController.createListing);
+
+// READ: Route to get all listings [cite: 120]
+router.get('/all', listingsController.getAllListings);
+
+// UPDATE: Route to edit a listing [cite: 58]
+router.put('/update/:id', listingsController.updateListing);
+
+// DELETE: Route to remove a listing [cite: 58]
+router.delete('/delete/:id', listingsController.deleteListing);
+
+module.exports = router;
