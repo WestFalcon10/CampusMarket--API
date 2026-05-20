@@ -9,6 +9,7 @@ const CATEGORIES = {
 // ── State ────────────────────────────────────────────
 let token = localStorage.getItem('cm_token') || null;
 let currentUser = JSON.parse(localStorage.getItem('cm_user') || 'null');
+let allListings = [];
 
 // ── Init ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,9 +27,11 @@ function updateNavbar() {
     guest.classList.add('hidden');
     user.classList.remove('hidden');
     name.textContent = `Hi, ${currentUser.full_name.split(' ')[0]}`;
+    if (!notifPollInterval) startNotifPolling();
   } else {
     guest.classList.remove('hidden');
     user.classList.add('hidden');
+    stopNotifPolling();
   }
 }
 
@@ -37,6 +40,7 @@ function logout() {
   currentUser = null;
   localStorage.removeItem('cm_token');
   localStorage.removeItem('cm_user');
+  stopNotifPolling();
   updateNavbar();
   fetchListings();
   showToast('Logged out successfully');
@@ -67,16 +71,16 @@ async function fetchListings() {
 
     if (!data.success) throw new Error(data.message);
 
-    const listings = data.data;
-    countEl.textContent = listings.length ? `${listings.length} listing${listings.length !== 1 ? 's' : ''}` : '';
+    allListings = data.data;
+    countEl.textContent = allListings.length ? `${allListings.length} listing${allListings.length !== 1 ? 's' : ''}` : '';
 
-    if (listings.length === 0) {
+    if (allListings.length === 0) {
       grid.innerHTML = '';
       emptyState.classList.remove('hidden');
       return;
     }
 
-    grid.innerHTML = listings.map(renderCard).join('');
+    grid.innerHTML = allListings.map(renderCard).join('');
   } catch (err) {
     grid.innerHTML = '';
     emptyState.classList.remove('hidden');
@@ -85,24 +89,31 @@ async function fetchListings() {
 }
 
 function renderCard(listing) {
-  const category  = CATEGORIES[listing.category_id] || 'Other';
-  const price     = parseFloat(listing.price).toFixed(2);
-  const desc      = listing.description || 'No description provided.';
-  const date      = new Date(listing.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' });
-  const watchBtn  = token
-    ? `<button class="btn-watch" onclick="addToWatchlist(${listing.id}, this)">♡ Watchlist</button>`
-    : '';
+  const category = CATEGORIES[listing.category_id] || 'Other';
+  const price    = parseFloat(listing.price).toFixed(2);
+  const desc     = listing.description || 'No description provided.';
+  const date     = new Date(listing.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' });
+  const isOwner  = currentUser && listing.seller_id === currentUser.id;
+
+  const actionBtn = isOwner
+    ? `<div class="card-actions">
+        <button class="btn-edit" onclick="openEditModal(${listing.id})">✏ Edit</button>
+        <button class="btn-delete" onclick="deleteListing(${listing.id})">🗑 Delete</button>
+       </div>`
+    : (token ? `<button class="btn-watch" onclick="addToWatchlist(${listing.id}, this)">♡ Watchlist</button>` : '');
 
   return `
-    <div class="card">
+    <div class="card" data-listing-id="${listing.id}">
       <span class="card-badge">${category}</span>
       <h3 class="card-title">${escapeHtml(listing.title)}</h3>
       <p class="card-description">${escapeHtml(desc)}</p>
+      <p class="card-seller">Sold by: <strong>${escapeHtml(listing.seller_name || 'Unknown')}</strong></p>
+      <p class="card-university">${escapeHtml(listing.seller_university || '')}</p>
       <div class="card-footer">
         <span class="card-price">$${price}</span>
         <span class="card-date">${date}</span>
       </div>
-      ${watchBtn}
+      ${actionBtn}
     </div>`;
 }
 
@@ -134,6 +145,272 @@ async function addToWatchlist(listingId, btn) {
     btn.disabled = false;
     btn.textContent = '♡ Watchlist';
     showToast(err.message || 'Could not add to watchlist', 'error');
+  }
+}
+
+// ── Notifications ──────────────────────────────────────
+let notifPollInterval = null;
+let notifOpen = false;
+
+function startNotifPolling() {
+  fetchNotifBadge();
+  notifPollInterval = setInterval(fetchNotifBadge, 30000);
+}
+
+function stopNotifPolling() {
+  clearInterval(notifPollInterval);
+  notifPollInterval = null;
+}
+
+async function fetchNotifBadge() {
+  if (!token) return;
+  try {
+    const res  = await fetch(`${API}/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!data.success) return;
+
+    const unread = data.data.filter((n) => !n.is_read).length;
+    const badge  = document.getElementById('notif-badge');
+    if (unread > 0) {
+      badge.textContent = unread > 99 ? '99+' : unread;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+
+    if (notifOpen) renderNotifList(data.data);
+  } catch (_) {}
+}
+
+function toggleNotifications(e) {
+  e.stopPropagation();
+  const dropdown = document.getElementById('notif-dropdown');
+  notifOpen = !notifOpen;
+  dropdown.classList.toggle('hidden', !notifOpen);
+  if (notifOpen) loadNotifications();
+}
+
+async function loadNotifications() {
+  try {
+    const res  = await fetch(`${API}/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    renderNotifList(data.data);
+  } catch (err) {
+    document.getElementById('notif-list').innerHTML =
+      `<div class="notif-empty">${err.message || 'Could not load notifications.'}</div>`;
+  }
+}
+
+function renderNotifList(notifications) {
+  const list = document.getElementById('notif-list');
+  if (notifications.length === 0) {
+    list.innerHTML = `<div class="notif-empty"><div class="empty-icon">🔔</div>No notifications yet</div>`;
+    return;
+  }
+  list.innerHTML = notifications.map((n) => `
+    <div class="notif-item ${n.is_read ? '' : 'unread'}" onclick="markAsRead(${n.id}, this)">
+      <span class="notif-msg">${escapeHtml(n.message)}</span>
+      <span class="notif-time">${timeAgo(n.created_at)}</span>
+    </div>`).join('');
+}
+
+async function markAsRead(id, el) {
+  if (el.classList.contains('unread')) {
+    el.classList.remove('unread');
+    try {
+      await fetch(`${API}/notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchNotifBadge();
+    } catch (_) {}
+  }
+}
+
+async function markAllAsRead() {
+  const items = document.querySelectorAll('.notif-item.unread');
+  items.forEach((el) => el.classList.remove('unread'));
+  document.getElementById('notif-badge').classList.add('hidden');
+
+  try {
+    const res  = await fetch(`${API}/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!data.success) return;
+
+    const unread = data.data.filter((n) => !n.is_read);
+    await Promise.all(unread.map((n) =>
+      fetch(`${API}/notifications/${n.id}/read`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    ));
+  } catch (_) {}
+}
+
+function timeAgo(dateStr) {
+  const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+  if (diff < 60)   return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+  return `${Math.floor(diff / 86400)} days ago`;
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  if (notifOpen && !document.getElementById('bell-btn')?.contains(e.target) &&
+      !document.getElementById('notif-dropdown')?.contains(e.target)) {
+    notifOpen = false;
+    document.getElementById('notif-dropdown')?.classList.add('hidden');
+  }
+});
+
+// ── Watchlist modal ────────────────────────────────────
+async function openWatchlist() {
+  document.getElementById('watchlist-modal').classList.remove('hidden');
+  const body = document.getElementById('watchlist-body');
+  body.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Loading...</p></div>';
+
+  try {
+    const res  = await fetch(`${API}/watchlist`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.message);
+
+    if (data.data.length === 0) {
+      body.innerHTML = `
+        <div class="empty-state" style="padding:40px 0">
+          <div class="empty-icon">♡</div>
+          <h3>Your watchlist is empty</h3>
+          <p>Click "♡ Watchlist" on any listing to save it here.</p>
+        </div>`;
+      return;
+    }
+
+    body.innerHTML = data.data.map((item) => `
+      <div class="watchlist-item" id="wl-${item.item_id}">
+        <div class="watchlist-item-info">
+          <span class="card-badge" style="margin-bottom:4px">${CATEGORIES[item.category_id] || 'Other'}</span>
+          <h4 class="watchlist-item-title">${escapeHtml(item.title)}</h4>
+          <p class="watchlist-item-desc">${escapeHtml(item.description || 'No description.')}</p>
+        </div>
+        <div class="watchlist-item-right">
+          <span class="card-price">$${parseFloat(item.price).toFixed(2)}</span>
+          <button class="btn-remove" onclick="removeFromWatchlist(${item.listing_id})">Remove</button>
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    body.innerHTML = `<p class="form-error" style="margin:0">${err.message || 'Could not load watchlist.'}</p>`;
+  }
+}
+
+async function removeFromWatchlist(itemId) {
+  try {
+    const res  = await fetch(`${API}/watchlist/${itemId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.message);
+
+    document.getElementById(`wl-${itemId}`)?.remove();
+
+    const body = document.getElementById('watchlist-body');
+    if (!body.querySelector('.watchlist-item')) {
+      body.innerHTML = `
+        <div class="empty-state" style="padding:40px 0">
+          <div class="empty-icon">♡</div>
+          <h3>Your watchlist is empty</h3>
+          <p>Click "♡ Watchlist" on any listing to save it here.</p>
+        </div>`;
+    }
+
+    showToast('Removed from watchlist', 'success');
+  } catch (err) {
+    showToast(err.message || 'Could not remove item', 'error');
+  }
+}
+
+// ── Delete listing ─────────────────────────────────────
+async function deleteListing(id) {
+  if (!confirm('Are you sure you want to delete this listing?')) return;
+
+  try {
+    const res  = await fetch(`${API}/listings/delete/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.message);
+
+    const card = document.querySelector(`[data-listing-id="${id}"]`);
+    if (card) card.remove();
+
+    showToast('Listing deleted', 'success');
+  } catch (err) {
+    showToast(err.message || 'Could not delete listing', 'error');
+  }
+}
+
+// ── Edit listing ───────────────────────────────────────
+function openEditModal(id) {
+  const listing = allListings.find((l) => l.id === id);
+  if (!listing) return;
+
+  document.getElementById('edit-id').value          = listing.id;
+  document.getElementById('edit-title').value        = listing.title;
+  document.getElementById('edit-description').value  = listing.description || '';
+  document.getElementById('edit-price').value        = parseFloat(listing.price).toFixed(2);
+  document.getElementById('edit-category').value     = listing.category_id;
+  document.getElementById('edit-condition').value    = listing.condition || '';
+  clearError(document.getElementById('edit-error'));
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+async function handleEditListing(e) {
+  e.preventDefault();
+  const id             = document.getElementById('edit-id').value;
+  const title          = document.getElementById('edit-title').value.trim();
+  const description    = document.getElementById('edit-description').value.trim();
+  const price          = document.getElementById('edit-price').value;
+  const category_id    = document.getElementById('edit-category').value;
+  const condition = document.getElementById('edit-condition').value;
+  const errEl     = document.getElementById('edit-error');
+  const btn       = document.getElementById('edit-btn');
+
+  clearError(errEl);
+  setLoading(btn, 'Saving...');
+
+  try {
+    const res  = await fetch(`${API}/listings/update/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ title, description, price: parseFloat(price), category_id: parseInt(category_id), condition }),
+    });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.message);
+
+    closeModal('edit-modal');
+    fetchListings();
+    showToast('Listing updated successfully', 'success');
+  } catch (err) {
+    showError(errEl, err.message || 'Could not update listing.');
+  } finally {
+    resetLoading(btn, 'Save Changes');
   }
 }
 
@@ -209,12 +486,13 @@ async function handleRegister(e) {
 // ── Create listing ─────────────────────────────────────
 async function handleCreateListing(e) {
   e.preventDefault();
-  const title       = document.getElementById('listing-title').value.trim();
-  const description = document.getElementById('listing-description').value.trim();
-  const price       = document.getElementById('listing-price').value;
-  const category_id = document.getElementById('listing-category').value;
-  const errEl       = document.getElementById('listing-error');
-  const btn         = document.getElementById('listing-btn');
+  const title          = document.getElementById('listing-title').value.trim();
+  const description    = document.getElementById('listing-description').value.trim();
+  const price          = document.getElementById('listing-price').value;
+  const category_id    = document.getElementById('listing-category').value;
+  const condition = document.getElementById('listing-condition').value;
+  const errEl     = document.getElementById('listing-error');
+  const btn       = document.getElementById('listing-btn');
 
   clearError(errEl);
   setLoading(btn, 'Posting...');
@@ -226,7 +504,7 @@ async function handleCreateListing(e) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ title, description, price: parseFloat(price), category_id: parseInt(category_id) }),
+      body: JSON.stringify({ title, description, price: parseFloat(price), category_id: parseInt(category_id), condition }),
     });
     const data = await res.json();
 

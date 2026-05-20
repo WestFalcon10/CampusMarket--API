@@ -2,7 +2,7 @@ const pool = require('./src/config/db');
 
 exports.createListing = async (req, res) => {
   try {
-    const { title, description, price, status, category_id } = req.body;
+    const { title, description, price, category_id, condition } = req.body;
     const seller_id = req.user.id;
 
     if (!title || price == null || !category_id) {
@@ -14,15 +14,31 @@ exports.createListing = async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO listings (seller_id, category_id, title, description, price, status)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, seller_id, category_id, title, description, price, status, created_at`,
-      [seller_id, category_id, title, description ?? null, price, status ?? 'active']
+      `INSERT INTO listings (seller_id, category_id, title, description, price, condition, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active')
+       RETURNING id, seller_id, category_id, title, description, price, condition, status, created_at`,
+      [seller_id, category_id, title, description ?? null, price, condition ?? null]
     );
+
+    const newListing = result.rows[0];
+
+    // Notify all other users about the new listing (fire-and-forget)
+    pool.query('SELECT id FROM users WHERE id != $1', [seller_id]).then((users) => {
+      if (users.rows.length === 0) return;
+      const message = `New item listed: ${newListing.title} for $${Number(newListing.price).toFixed(2)}`;
+      const insertValues = users.rows
+        .map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`)
+        .join(', ');
+      const insertParams = users.rows.flatMap((u) => [u.id, newListing.id, 'new_listing', message]);
+      return pool.query(
+        `INSERT INTO notifications (user_id, item_id, type, message) VALUES ${insertValues}`,
+        insertParams
+      );
+    }).catch((err) => console.error('Notification insert error:', err));
 
     res.status(201).json({
       success: true,
-      data: result.rows[0],
+      data: newListing,
       message: 'Listing created successfully',
     });
   } catch (error) {
@@ -39,30 +55,32 @@ exports.getAllListings = async (req, res) => {
   try {
     const { category_id, minPrice, maxPrice, keyword } = req.query;
     const params = [];
-    const conditions = [`status = 'active'`];
+    const conditions = [`l.status = 'active'`];
 
     if (category_id) {
       params.push(category_id);
-      conditions.push(`category_id = $${params.length}`);
+      conditions.push(`l.category_id = $${params.length}`);
     }
     if (minPrice != null) {
       params.push(minPrice);
-      conditions.push(`price >= $${params.length}`);
+      conditions.push(`l.price >= $${params.length}`);
     }
     if (maxPrice != null) {
       params.push(maxPrice);
-      conditions.push(`price <= $${params.length}`);
+      conditions.push(`l.price <= $${params.length}`);
     }
     if (keyword) {
       params.push(`%${keyword}%`);
-      conditions.push(`(title ILIKE $${params.length} OR description ILIKE $${params.length})`);
+      conditions.push(`(l.title ILIKE $${params.length} OR l.description ILIKE $${params.length})`);
     }
 
     const result = await pool.query(
-      `SELECT id, seller_id, category_id, title, description, price, status, created_at, updated_at
-       FROM listings
+      `SELECT l.id, l.seller_id, l.category_id, l.title, l.description, l.price, l.condition, l.status, l.created_at, l.updated_at,
+              u.full_name AS seller_name, u.university AS seller_university
+       FROM listings l
+       JOIN users u ON l.seller_id = u.id
        WHERE ${conditions.join(' AND ')}
-       ORDER BY created_at DESC`,
+       ORDER BY l.created_at DESC`,
       params
     );
 
@@ -84,11 +102,11 @@ exports.getAllListings = async (req, res) => {
 exports.updateListing = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, price, status, category_id } = req.body;
+    const { title, description, price, category_id, condition } = req.body;
 
     const existing = await pool.query(
-      'SELECT id, seller_id, price FROM listings WHERE id = $1 AND status = $2',
-      [id, 'active']
+      `SELECT id, seller_id, price FROM listings WHERE id = $1 AND status = 'active'`,
+      [id]
     );
 
     if (existing.rows.length === 0) {
@@ -111,21 +129,22 @@ exports.updateListing = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE listings
-       SET title = COALESCE($1, title),
+       SET title       = COALESCE($1, title),
            description = COALESCE($2, description),
-           price = COALESCE($3, price),
-           status = COALESCE($4, status),
-           category_id = COALESCE($5, category_id),
-           updated_at = CURRENT_TIMESTAMP
+           price       = COALESCE($3, price),
+           category_id = COALESCE($4, category_id),
+           condition   = COALESCE($5, condition),
+           updated_at  = CURRENT_TIMESTAMP
        WHERE id = $6
-       RETURNING id, seller_id, category_id, title, description, price, status, updated_at`,
-      [title, description, price, status, category_id, id]
+       RETURNING id, seller_id, category_id, title, description, price, condition, status, updated_at`,
+      [title, description, price, category_id, condition, id]
     );
 
     const updated = result.rows[0];
+
     if (price != null && Number(price) < Number(oldPrice)) {
       const watchers = await pool.query(
-        'SELECT user_id FROM watchlist WHERE item_id = $1',
+        'SELECT user_id FROM watchlist WHERE listing_id = $1',
         [id]
       );
       if (watchers.rows.length > 0) {
@@ -161,8 +180,8 @@ exports.deleteListing = async (req, res) => {
     const { id } = req.params;
 
     const existing = await pool.query(
-      'SELECT id, seller_id FROM listings WHERE id = $1 AND status = $2',
-      [id, 'active']
+      `SELECT id, seller_id FROM listings WHERE id = $1 AND status = 'active'`,
+      [id]
     );
 
     if (existing.rows.length === 0) {

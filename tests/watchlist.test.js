@@ -1,8 +1,8 @@
 const request = require('supertest');
 const app = require('../app');
 
-// items table has seeded rows; id=1 is "Calculus Textbook 8th Ed"
-const ITEM_ID = 1;
+// listings table has seeded rows; id=1 is "Calculus Textbook"
+const LISTING_ID = 1;
 
 let token;
 
@@ -25,7 +25,7 @@ beforeAll(async () => {
 
 describe('POST /watchlist/:id', () => {
   it('should return 401 without a token', async () => {
-    const res = await request(app).post(`/watchlist/${ITEM_ID}`);
+    const res = await request(app).post(`/watchlist/${LISTING_ID}`);
 
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);
@@ -33,25 +33,25 @@ describe('POST /watchlist/:id', () => {
 
   it('should return 201 when adding to watchlist with a valid token', async () => {
     const res = await request(app)
-      .post(`/watchlist/${ITEM_ID}`)
+      .post(`/watchlist/${LISTING_ID}`)
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveProperty('id');
-    expect(Number(res.body.data.item_id)).toBe(ITEM_ID);
+    expect(Number(res.body.data.listing_id)).toBe(LISTING_ID);
   });
 
-  it('should return 409 if the item is already in the watchlist', async () => {
+  it('should return 409 if the listing is already in the watchlist', async () => {
     const res = await request(app)
-      .post(`/watchlist/${ITEM_ID}`)
+      .post(`/watchlist/${LISTING_ID}`)
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(409);
     expect(res.body.success).toBe(false);
   });
 
-  it('should return 404 for a non-existent item', async () => {
+  it('should return 404 for a non-existent listing', async () => {
     const res = await request(app)
       .post('/watchlist/999999')
       .set('Authorization', `Bearer ${token}`);
@@ -76,18 +76,19 @@ describe('GET /watchlist', () => {
     expect(res.body.success).toBe(true);
     expect(Array.isArray(res.body.data)).toBe(true);
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.data[0]).toHaveProperty('listing_id');
   });
 });
 
 describe('DELETE /watchlist/:id', () => {
   it('should return 401 without a token', async () => {
-    const res = await request(app).delete(`/watchlist/${ITEM_ID}`);
+    const res = await request(app).delete(`/watchlist/${LISTING_ID}`);
     expect(res.status).toBe(401);
   });
 
-  it('should return 200 and remove the item from watchlist', async () => {
+  it('should return 200 and remove the listing from watchlist', async () => {
     const res = await request(app)
-      .delete(`/watchlist/${ITEM_ID}`)
+      .delete(`/watchlist/${LISTING_ID}`)
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);

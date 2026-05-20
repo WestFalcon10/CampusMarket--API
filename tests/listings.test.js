@@ -73,6 +73,7 @@ describe('POST /listings/add', () => {
         description: 'Barely used, great condition',
         price: 45.00,
         category_id: 1,
+        condition: 'good',
       });
 
     expect(res.status).toBe(201);
