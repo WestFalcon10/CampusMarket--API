@@ -1,3 +1,38 @@
+/**
+ * @swagger
+ * tags:
+ *   name: Notifications
+ *   description: User notifications (e.g. price drop alerts)
+ *
+ * /notifications:
+ *   get:
+ *     summary: Get all notifications for the current user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Notifications fetched successfully
+ *
+ * /notifications/{id}/read:
+ *   patch:
+ *     summary: Mark a notification as read
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Notification ID
+ *     responses:
+ *       200:
+ *         description: Notification marked as read
+ *       404:
+ *         description: Notification not found
+ */
 const express = require('express');
 const router = express.Router();
 const pool = require('../src/config/db');

@@ -1,3 +1,57 @@
+/**
+ * @swagger
+ * tags:
+ *   name: Watchlist
+ *   description: Save and track listings of interest
+ *
+ * /watchlist/{id}:
+ *   post:
+ *     summary: Add a listing to the current user's watchlist
+ *     tags: [Watchlist]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Listing ID to watch
+ *     responses:
+ *       201:
+ *         description: Added to watchlist
+ *       404:
+ *         description: Listing not found
+ *       409:
+ *         description: Already in watchlist
+ *   delete:
+ *     summary: Remove a listing from the current user's watchlist
+ *     tags: [Watchlist]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Listing ID to remove
+ *     responses:
+ *       200:
+ *         description: Removed from watchlist
+ *       404:
+ *         description: Watchlist entry not found
+ *
+ * /watchlist:
+ *   get:
+ *     summary: Get all listings in the current user's watchlist
+ *     tags: [Watchlist]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Watchlist fetched successfully
+ */
 const express = require('express');
 const router = express.Router();
 const pool = require('../src/config/db');
