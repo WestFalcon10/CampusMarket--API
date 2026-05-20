@@ -63,11 +63,11 @@ router.post('/:item_id', authenticateToken, async (req, res) => {
     const user_id = req.user.id;
 
     const listing = await pool.query(
-      'SELECT id FROM listings WHERE id = $1 AND status = $2',
-      [item_id, 'active']
+      'SELECT id FROM items WHERE id = $1',
+      [item_id]
     );
     if (listing.rows.length === 0) {
-      return res.status(404).json({ success: false, data: null, message: 'Listing not found' });
+      return res.status(404).json({ success: false, data: null, message: 'Item not found' });
     }
 
     const existing = await pool.query(
@@ -96,9 +96,9 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const result = await pool.query(
       `SELECT w.id, w.created_at,
-              l.id AS item_id, l.title, l.description, l.price, l.status, l.category_id
+              i.id AS item_id, i.title, i.description, i.price, i.category_id, i.item_condition
        FROM watchlist w
-       JOIN listings l ON l.id = w.item_id
+       JOIN items i ON i.id = w.item_id
        WHERE w.user_id = $1
        ORDER BY w.created_at DESC`,
       [user_id]

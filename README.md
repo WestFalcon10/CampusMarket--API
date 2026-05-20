@@ -2,34 +2,52 @@
 
 A REST API for a student marketplace platform where university students can buy and sell textbooks, electronics, furniture, and more.
 
-## Getting Started
+---
 
-### Prerequisites
-- Node.js v18+
-- PostgreSQL
+## Running the project
 
-### Installation
+### Option 1 — Docker (recommended)
+
+Requires Docker Desktop.
 
 ```bash
-git clone https://github.com/WestFalcon10/CampusMarket--API.git
-cd CampusMarket--API
+docker-compose up --build
+```
+
+The API will be available at `http://localhost:3000`.
+The database is created automatically using `schema.sql` and seeded with `seed.sql`.
+
+To stop:
+```bash
+docker-compose down
+```
+
+To reset the database volume:
+```bash
+docker-compose down -v
+```
+
+---
+
+### Option 2 — Local
+
+**Prerequisites:** Node.js v18+, PostgreSQL running locally.
+
+**1. Install dependencies**
+```bash
 npm install
 ```
 
-### Database Setup
-
-Create the database and run the schema:
-
+**2. Set up the database**
 ```bash
 psql -U postgres -c "CREATE DATABASE campusmarket;"
 psql -U postgres -d campusmarket -f schema.sql
 psql -U postgres -d campusmarket -f seed.sql
 ```
 
-### Environment Variables
+**3. Configure environment variables**
 
 Create a `.env` file in the project root:
-
 ```env
 PORT=3000
 DB_HOST=localhost
@@ -40,24 +58,37 @@ DB_PORT=5432
 JWT_SECRET=your_jwt_secret
 ```
 
-### Running the Server
-
+**4. Start the server**
 ```bash
-# Production
 npm start
-
-# Development
-npm run dev
 ```
 
-The API will be available at `http://localhost:3000`.
-Interactive API docs (Swagger UI) are at `http://localhost:3000/api-docs`.
+---
+
+## Running tests
+
+Tests use Jest + Supertest and hit a real database, so make sure the DB is running and `.env` is configured.
+
+```bash
+npm test
+```
+
+Test files are in `tests/`:
+- `auth.test.js` — register, login, invalid credentials
+- `listings.test.js` — fetch, filter, create listings
+- `watchlist.test.js` — add, view, remove from watchlist
+
+---
+
+## API docs
+
+Interactive Swagger UI: `http://localhost:3000/api-docs`
 
 ---
 
 ## API Endpoints
 
-All protected endpoints require a `Bearer <token>` header obtained from `/users/login`.
+All protected endpoints require an `Authorization: Bearer <token>` header obtained from `POST /users/login`.
 
 ### Users
 
@@ -103,5 +134,15 @@ All protected endpoints require a `Bearer <token>` header obtained from `/users/
 
 ## Categories
 
-The seed file populates these categories:
-Textbooks, Electronics, Furniture, Clothing, Sports, Music, Gaming, Appliances, Stationery, Other
+| ID | Name |
+|----|------|
+| 1 | Textbooks |
+| 2 | Electronics |
+| 3 | Furniture |
+| 4 | Clothing |
+| 5 | Sports |
+| 6 | Music |
+| 7 | Gaming |
+| 8 | Appliances |
+| 9 | Stationery |
+| 10 | Other |

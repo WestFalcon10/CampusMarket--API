@@ -40,8 +40,11 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`CampusMarket API listening on port ${PORT}`);
-});
+// Only bind to a port when run directly — not when imported by tests
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`CampusMarket API listening on port ${PORT}`);
+  });
+}
 
 module.exports = app;
