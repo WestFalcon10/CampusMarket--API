@@ -1,14 +1,11 @@
-// listingsRoutes.js
 const express = require('express');
 const router = express.Router();
 const listingsController = require('./listingsController');
+const { authenticateToken } = require('./middleware/auth');
 
-// Route to create a new listing
-// This matches your task to "Create API to add listings"
-router.post('/add', listingsController.createListing);
-
-// Route to get all listings
-// This matches your task to "Implement basic 'get listings' functionality"
+router.post('/add', authenticateToken, listingsController.createListing);
 router.get('/all', listingsController.getAllListings);
+router.put('/update/:id', authenticateToken, listingsController.updateListing);
+router.delete('/delete/:id', authenticateToken, listingsController.deleteListing);
 
 module.exports = router;
