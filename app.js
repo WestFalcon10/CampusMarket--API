@@ -13,10 +13,16 @@ const usersRoutes         = require('./routes/users');
 const watchlistRoutes     = require('./routes/watchlist');
 const notificationsRoutes = require('./routes/notifications');
 
+const path = require('path');
+
 const app = express();
 
 // ── Security headers ────────────────────────────────────
-app.use(helmet());
+// contentSecurityPolicy disabled so Cloudinary images and inline scripts load
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// ── Serve frontend ──────────────────────────────────────
+app.use(express.static(path.join(__dirname, 'frontend')));
 
 // ── CORS ────────────────────────────────────────────────
 app.use(cors({
