@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CampusMarket</title>
+  <title>CampusMarket — Student Marketplace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -12,17 +15,17 @@
   <nav class="navbar">
     <div class="nav-container">
       <div class="nav-logo">
-        <span class="logo-icon">🎓</span>
-        <span class="logo-text">CampusMarket</span>
+        <div class="logo-mark">🎓</div>
+        <span class="logo-text">Campus<span class="logo-accent">Market</span></span>
       </div>
       <div class="nav-actions">
         <div id="nav-guest" class="nav-guest">
-          <button class="btn btn-outline" onclick="openAuth('login')">Log In</button>
-          <button class="btn btn-primary" onclick="openAuth('register')">Register</button>
+          <button class="btn btn-ghost-nav" onclick="openAuth('login')">Log In</button>
+          <button class="btn btn-nav-primary" onclick="openAuth('register')">Register</button>
         </div>
         <div id="nav-user" class="nav-user hidden">
-          <button class="btn btn-secondary" onclick="openCreateListing()">+ Sell Item</button>
-          <button class="btn btn-outline" onclick="openWatchlist()">♡ Watchlist</button>
+          <button class="btn btn-nav-secondary" onclick="openCreateListing()">+ Sell Item</button>
+          <button class="btn btn-nav-ghost" onclick="openWatchlist()">♡ Watchlist</button>
           <div class="bell-wrapper">
             <button class="bell-btn" id="bell-btn" onclick="toggleNotifications(event)">
               🔔
@@ -31,15 +34,15 @@
             <div id="notif-dropdown" class="notif-dropdown hidden">
               <div class="notif-header">
                 <span class="notif-title">Notifications</span>
-                <button class="notif-mark-all" onclick="markAllAsRead()">Mark all as read</button>
+                <button class="notif-mark-all" onclick="markAllAsRead()">Mark all read</button>
               </div>
               <div id="notif-list" class="notif-list">
                 <div class="loading-state" style="padding:24px 0"><div class="spinner"></div></div>
               </div>
             </div>
           </div>
-          <span class="nav-username" id="nav-username"></span>
-          <button class="btn btn-outline" onclick="logout()">Log Out</button>
+          <div class="user-chip" id="nav-username"></div>
+          <button class="btn btn-nav-ghost" onclick="logout()">Log Out</button>
         </div>
       </div>
     </div>
@@ -47,31 +50,53 @@
 
   <!-- HERO -->
   <section class="hero">
-    <div class="hero-content">
+    <div class="hero-inner">
       <h1 class="hero-title">Buy &amp; Sell on Campus</h1>
       <p class="hero-subtitle">The student marketplace — find textbooks, electronics, furniture and more from students at your university.</p>
-      <div class="search-bar">
-        <input
-          type="text"
-          id="search-keyword"
-          class="search-input"
-          placeholder="Search listings..."
-          oninput="debounceSearch()"
-        />
-        <select id="search-category" class="search-select" onchange="fetchListings()">
-          <option value="">All Categories</option>
-          <option value="1">Textbooks</option>
-          <option value="2">Electronics</option>
-          <option value="3">Furniture</option>
-          <option value="4">Clothing</option>
-          <option value="5">Sports</option>
-          <option value="6">Music</option>
-          <option value="7">Gaming</option>
-          <option value="8">Appliances</option>
-          <option value="9">Stationery</option>
-          <option value="10">Other</option>
-        </select>
-        <button class="btn btn-primary search-btn" onclick="fetchListings()">Search</button>
+
+      <div class="search-box">
+        <div class="search-main">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-keyword" class="search-input" placeholder="Search listings..." oninput="debounceSearch()" />
+        </div>
+        <div class="search-price">
+          <input type="number" id="search-min-price" class="price-input" placeholder="Min $" min="0" oninput="debounceSearch()" />
+          <span class="price-sep">—</span>
+          <input type="number" id="search-max-price" class="price-input" placeholder="Max $" min="0" oninput="debounceSearch()" />
+        </div>
+        <button class="search-btn" onclick="fetchListings()">Search</button>
+      </div>
+
+      <!-- hidden select kept for JS compatibility -->
+      <select id="search-category" style="display:none" onchange="fetchListings()">
+        <option value="">All Categories</option>
+        <option value="1">Textbooks</option>
+        <option value="2">Electronics</option>
+        <option value="3">Furniture</option>
+        <option value="4">Clothing</option>
+        <option value="5">Sports</option>
+        <option value="6">Music</option>
+        <option value="7">Gaming</option>
+        <option value="8">Appliances</option>
+        <option value="9">Stationery</option>
+        <option value="10">Other</option>
+      </select>
+
+      <div class="category-pills">
+        <button class="pill active" onclick="filterCategory('', this)">All</button>
+        <button class="pill" onclick="filterCategory('1', this)">📚 Textbooks</button>
+        <button class="pill" onclick="filterCategory('2', this)">💻 Electronics</button>
+        <button class="pill" onclick="filterCategory('3', this)">🪑 Furniture</button>
+        <button class="pill" onclick="filterCategory('4', this)">👕 Clothing</button>
+        <button class="pill" onclick="filterCategory('7', this)">🎮 Gaming</button>
+      </div>
+
+      <div class="stats-bar">
+        <div class="stat"><span id="stat-listings">0</span> Listings</div>
+        <div class="stat-sep"></div>
+        <div class="stat">10 Categories</div>
+        <div class="stat-sep"></div>
+        <div class="stat">Free to Use</div>
       </div>
     </div>
   </section>
@@ -89,26 +114,31 @@
       </div>
     </div>
     <div id="empty-state" class="empty-state hidden">
-      <div class="empty-icon">📦</div>
+      <div class="empty-icon">🏪</div>
       <h3>No listings found</h3>
-      <p>Try adjusting your search or check back later.</p>
+      <p>Try adjusting your search or be the first to post!</p>
     </div>
   </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="footer-logo">🎓 CampusMarket</span>
+      <span class="footer-sep">•</span>
+      <span class="footer-copy">© 2025 Built for students</span>
+    </div>
+  </footer>
 
   <!-- AUTH MODAL -->
   <div id="auth-modal" class="modal-overlay hidden" onclick="closeModalOnOverlay(event, 'auth-modal')">
     <div class="modal">
       <button class="modal-close" onclick="closeModal('auth-modal')">&times;</button>
-
-      <!-- Tab switcher -->
       <div class="modal-tabs">
         <button id="tab-login" class="modal-tab active" onclick="switchTab('login')">Log In</button>
         <button id="tab-register" class="modal-tab" onclick="switchTab('register')">Register</button>
       </div>
-
-      <!-- Login form -->
       <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
-        <h2 class="modal-title">Welcome back</h2>
+        <h2 class="modal-title">Welcome back 👋</h2>
         <div class="form-group">
           <label>Email</label>
           <input type="email" id="login-email" placeholder="you@university.edu" required />
@@ -121,10 +151,8 @@
         <button type="submit" class="btn btn-primary btn-full" id="login-btn">Log In</button>
         <p class="form-footer">Don't have an account? <a onclick="switchTab('register')">Register</a></p>
       </form>
-
-      <!-- Register form -->
       <form id="register-form" class="auth-form hidden" onsubmit="handleRegister(event)">
-        <h2 class="modal-title">Create account</h2>
+        <h2 class="modal-title">Create account ✨</h2>
         <div class="form-group">
           <label>Full Name</label>
           <input type="text" id="reg-fullname" placeholder="Jane Smith" required />
@@ -150,10 +178,10 @@
 
   <!-- CREATE LISTING MODAL -->
   <div id="listing-modal" class="modal-overlay hidden" onclick="closeModalOnOverlay(event, 'listing-modal')">
-    <div class="modal">
+    <div class="modal modal-wide">
       <button class="modal-close" onclick="closeModal('listing-modal')">&times;</button>
       <form id="listing-form" onsubmit="handleCreateListing(event)">
-        <h2 class="modal-title">Post a Listing</h2>
+        <h2 class="modal-title">Post a Listing 🏷️</h2>
         <div class="form-group">
           <label>Title</label>
           <input type="text" id="listing-title" placeholder="e.g. Calculus Textbook 3rd Edition" required />
@@ -211,10 +239,10 @@
 
   <!-- EDIT LISTING MODAL -->
   <div id="edit-modal" class="modal-overlay hidden" onclick="closeModalOnOverlay(event, 'edit-modal')">
-    <div class="modal">
+    <div class="modal modal-wide">
       <button class="modal-close" onclick="closeModal('edit-modal')">&times;</button>
       <form id="edit-form" onsubmit="handleEditListing(event)">
-        <h2 class="modal-title">Edit Listing</h2>
+        <h2 class="modal-title">Edit Listing ✏️</h2>
         <input type="hidden" id="edit-id" />
         <div class="form-group">
           <label>Title</label>
@@ -267,7 +295,7 @@
   <div id="watchlist-modal" class="modal-overlay hidden" onclick="closeModalOnOverlay(event, 'watchlist-modal')">
     <div class="modal modal-wide">
       <button class="modal-close" onclick="closeModal('watchlist-modal')">&times;</button>
-      <h2 class="modal-title">My Watchlist</h2>
+      <h2 class="modal-title">My Watchlist ❤️</h2>
       <div id="watchlist-body">
         <div class="loading-state"><div class="spinner"></div><p>Loading...</p></div>
       </div>

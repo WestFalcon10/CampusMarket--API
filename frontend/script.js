@@ -7,12 +7,21 @@ const CATEGORIES = {
   9: 'Stationery', 10: 'Other',
 };
 
-// ── State ────────────────────────────────────────────
-let token = localStorage.getItem('cm_token') || null;
+const CONDITION_LABEL = {
+  new: 'New', like_new: 'Like New', good: 'Good',
+  fair: 'Fair', poor: 'Poor', used: 'Used',
+};
+const CONDITION_CLASS = {
+  new: 'cond-new', like_new: 'cond-likenew', good: 'cond-good',
+  fair: 'cond-fair', poor: 'cond-poor', used: 'cond-used',
+};
+
+// ── State ─────────────────────────────────────────────
+let token       = localStorage.getItem('cm_token') || null;
 let currentUser = JSON.parse(localStorage.getItem('cm_user') || 'null');
 let allListings = [];
 
-// ── Init ─────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   updateNavbar();
   fetchListings();
@@ -52,7 +61,7 @@ function updateNavbar() {
   if (token && currentUser) {
     guest.classList.add('hidden');
     user.classList.remove('hidden');
-    name.textContent = `Hi, ${currentUser.full_name.split(' ')[0]}`;
+    name.textContent = `Hi, ${currentUser.full_name.split(' ')[0]} 👋`;
     if (!notifPollInterval) startNotifPolling();
   } else {
     guest.classList.remove('hidden');
@@ -74,31 +83,37 @@ function logout() {
 
 // ── Fetch listings ─────────────────────────────────────
 async function fetchListings() {
-  const keyword    = document.getElementById('search-keyword').value.trim();
-  const category   = document.getElementById('search-category').value;
+  const keyword  = document.getElementById('search-keyword').value.trim();
+  const category = document.getElementById('search-category').value;
+  const minPrice = document.getElementById('search-min-price')?.value;
+  const maxPrice = document.getElementById('search-max-price')?.value;
   const grid       = document.getElementById('listings-grid');
   const emptyState = document.getElementById('empty-state');
   const countEl    = document.getElementById('listings-count');
 
-  grid.innerHTML = `
-    <div class="loading-state">
-      <div class="spinner"></div>
-      <p>Loading listings...</p>
-    </div>`;
+  grid.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Loading listings...</p></div>`;
   emptyState.classList.add('hidden');
 
   const params = new URLSearchParams();
   if (keyword)  params.set('keyword', keyword);
   if (category) params.set('category_id', category);
+  if (minPrice) params.set('minPrice', minPrice);
+  if (maxPrice) params.set('maxPrice', maxPrice);
 
   try {
     const res  = await fetch(`${API}/listings/all?${params}`);
     const data = await res.json();
-
     if (!data.success) throw new Error(data.message);
 
     allListings = data.data;
-    countEl.textContent = allListings.length ? `${allListings.length} listing${allListings.length !== 1 ? 's' : ''}` : '';
+
+    // Update stats
+    const statEl = document.getElementById('stat-listings');
+    if (statEl) statEl.textContent = allListings.length;
+
+    countEl.textContent = allListings.length
+      ? `${allListings.length} listing${allListings.length !== 1 ? 's' : ''}`
+      : '';
 
     if (allListings.length === 0) {
       grid.innerHTML = '';
@@ -114,39 +129,66 @@ async function fetchListings() {
   }
 }
 
+// ── Render card ────────────────────────────────────────
 function renderCard(listing) {
-  const category  = CATEGORIES[listing.category_id] || 'Other';
-  const price     = parseFloat(listing.price).toFixed(2);
-  const desc      = listing.description || 'No description provided.';
-  const date      = new Date(listing.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' });
-  const isOwner   = currentUser && listing.seller_id === currentUser.id;
-  const firstImg  = listing.images && listing.images.length > 0 ? listing.images[0] : null;
+  const category      = CATEGORIES[listing.category_id] || 'Other';
+  const price         = parseFloat(listing.price).toFixed(2);
+  const desc          = listing.description || 'No description provided.';
+  const date          = new Date(listing.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' });
+  const isOwner       = currentUser && listing.seller_id === currentUser.id;
+  const firstImg      = listing.images && listing.images.length > 0 ? listing.images[0] : null;
+  const sellerInitial = (listing.seller_name || 'U')[0].toUpperCase();
+  const condLabel     = CONDITION_LABEL[listing.condition] || listing.condition || 'Used';
+  const condClass     = CONDITION_CLASS[listing.condition] || 'cond-used';
 
-  const imageHtml = firstImg
+  const mediaHtml = firstImg
     ? `<img class="card-image" src="${escapeHtml(firstImg)}" alt="${escapeHtml(listing.title)}" loading="lazy" />`
-    : `<div class="card-img-placeholder"><span>📷</span>No Image</div>`;
+    : `<div class="card-img-placeholder"><span>📷</span><p>No Image</p></div>`;
 
-  const actionBtn = isOwner
-    ? `<div class="card-actions">
+  const heartBtn = !isOwner && token
+    ? `<button class="card-heart" onclick="addToWatchlist(${listing.id}, this)" title="Add to Watchlist">♡</button>`
+    : '';
+
+  const actionBtns = isOwner
+    ? `<div class="card-owner-actions">
         <button class="btn-edit"   onclick="openEditModal(${listing.id})">✏ Edit</button>
         <button class="btn-delete" onclick="deleteListing(${listing.id})">🗑 Delete</button>
        </div>`
-    : (token ? `<button class="btn-watch" onclick="addToWatchlist(${listing.id}, this)">♡ Watchlist</button>` : '');
+    : '';
 
   return `
     <div class="card" data-listing-id="${listing.id}">
-      ${imageHtml}
-      <span class="card-badge">${category}</span>
-      <h3 class="card-title">${escapeHtml(listing.title)}</h3>
-      <p class="card-description">${escapeHtml(desc)}</p>
-      <p class="card-seller">Sold by: <strong>${escapeHtml(listing.seller_name || 'Unknown')}</strong></p>
-      <p class="card-university">${escapeHtml(listing.seller_university || '')}</p>
-      <div class="card-footer">
-        <span class="card-price">$${price}</span>
-        <span class="card-date">${date}</span>
+      <div class="card-media">
+        ${mediaHtml}
+        <span class="card-condition ${condClass}">${condLabel}</span>
+        ${heartBtn}
       </div>
-      ${actionBtn}
+      <div class="card-body">
+        <span class="card-category">${category}</span>
+        <h3 class="card-title">${escapeHtml(listing.title)}</h3>
+        <p class="card-description">${escapeHtml(desc)}</p>
+        <div class="card-seller-row">
+          <div class="seller-avatar">${sellerInitial}</div>
+          <div class="seller-info">
+            <span class="seller-name">${escapeHtml(listing.seller_name || 'Unknown')}</span>
+            <span class="seller-univ">${escapeHtml(listing.seller_university || '')}</span>
+          </div>
+          <span class="card-date">${date}</span>
+        </div>
+        <div class="card-footer">
+          <span class="card-price">$${price}</span>
+          ${actionBtns}
+        </div>
+      </div>
     </div>`;
+}
+
+// ── Category pill filter ───────────────────────────────
+function filterCategory(id, el) {
+  document.getElementById('search-category').value = id;
+  document.querySelectorAll('.pill').forEach((p) => p.classList.remove('active'));
+  el.classList.add('active');
+  fetchListings();
 }
 
 // ── Watchlist ──────────────────────────────────────────
@@ -154,7 +196,7 @@ async function addToWatchlist(listingId, btn) {
   if (!token) { openAuth('login'); return; }
 
   btn.disabled = true;
-  btn.textContent = 'Adding...';
+  btn.textContent = '…';
 
   try {
     const res  = await fetch(`${API}/watchlist/${listingId}`, {
@@ -164,18 +206,18 @@ async function addToWatchlist(listingId, btn) {
     const data = await res.json();
 
     if (res.status === 409) {
-      btn.textContent = '✓ Watching';
+      btn.textContent = '❤️';
       btn.classList.add('watching');
       return;
     }
     if (!data.success) throw new Error(data.message);
 
-    btn.textContent = '✓ Watching';
+    btn.textContent = '❤️';
     btn.classList.add('watching');
     showToast('Added to watchlist!', 'success');
   } catch (err) {
     btn.disabled = false;
-    btn.textContent = '♡ Watchlist';
+    btn.textContent = '♡';
     showToast(err.message || 'Could not add to watchlist', 'error');
   }
 }
@@ -197,9 +239,7 @@ function stopNotifPolling() {
 async function fetchNotifBadge() {
   if (!token) return;
   try {
-    const res  = await fetch(`${API}/notifications`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res  = await fetch(`${API}/notifications`, { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (!data.success) return;
 
@@ -211,7 +251,6 @@ async function fetchNotifBadge() {
     } else {
       badge.classList.add('hidden');
     }
-
     if (notifOpen) renderNotifList(data.data);
   } catch (_) {}
 }
@@ -226,9 +265,7 @@ function toggleNotifications(e) {
 
 async function loadNotifications() {
   try {
-    const res  = await fetch(`${API}/notifications`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res  = await fetch(`${API}/notifications`, { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (!data.success) throw new Error(data.message);
     renderNotifList(data.data);
@@ -241,7 +278,7 @@ async function loadNotifications() {
 function renderNotifList(notifications) {
   const list = document.getElementById('notif-list');
   if (notifications.length === 0) {
-    list.innerHTML = `<div class="notif-empty"><div class="empty-icon">🔔</div>No notifications yet</div>`;
+    list.innerHTML = `<div class="notif-empty">🔔 No notifications yet</div>`;
     return;
   }
   list.innerHTML = notifications.map((n) => `
@@ -265,36 +302,31 @@ async function markAsRead(id, el) {
 }
 
 async function markAllAsRead() {
-  const items = document.querySelectorAll('.notif-item.unread');
-  items.forEach((el) => el.classList.remove('unread'));
+  document.querySelectorAll('.notif-item.unread').forEach((el) => el.classList.remove('unread'));
   document.getElementById('notif-badge').classList.add('hidden');
-
   try {
-    const res  = await fetch(`${API}/notifications`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res  = await fetch(`${API}/notifications`, { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (!data.success) return;
-
-    const unread = data.data.filter((n) => !n.is_read);
-    await Promise.all(unread.map((n) =>
-      fetch(`${API}/notifications/${n.id}/read`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ));
+    await Promise.all(
+      data.data.filter((n) => !n.is_read).map((n) =>
+        fetch(`${API}/notifications/${n.id}/read`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      )
+    );
   } catch (_) {}
 }
 
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
-  if (diff < 60)   return 'Just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 60)    return 'Just now';
+  if (diff < 3600)  return `${Math.floor(diff / 60)} min ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
   return `${Math.floor(diff / 86400)} days ago`;
 }
 
-// Close dropdown when clicking outside
 document.addEventListener('click', (e) => {
   if (notifOpen && !document.getElementById('bell-btn')?.contains(e.target) &&
       !document.getElementById('notif-dropdown')?.contains(e.target)) {
@@ -310,11 +342,8 @@ async function openWatchlist() {
   body.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Loading...</p></div>';
 
   try {
-    const res  = await fetch(`${API}/watchlist`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res  = await fetch(`${API}/watchlist`, { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
-
     if (!data.success) throw new Error(data.message);
 
     if (data.data.length === 0) {
@@ -322,7 +351,7 @@ async function openWatchlist() {
         <div class="empty-state" style="padding:40px 0">
           <div class="empty-icon">♡</div>
           <h3>Your watchlist is empty</h3>
-          <p>Click "♡ Watchlist" on any listing to save it here.</p>
+          <p>Tap ♡ on any listing to save it here.</p>
         </div>`;
       return;
     }
@@ -330,12 +359,12 @@ async function openWatchlist() {
     body.innerHTML = data.data.map((item) => `
       <div class="watchlist-item" id="wl-${item.listing_id}">
         <div class="watchlist-item-info">
-          <span class="card-badge" style="margin-bottom:4px">${CATEGORIES[item.category_id] || 'Other'}</span>
+          <span class="card-category" style="margin-bottom:4px">${CATEGORIES[item.category_id] || 'Other'}</span>
           <h4 class="watchlist-item-title">${escapeHtml(item.title)}</h4>
           <p class="watchlist-item-desc">${escapeHtml(item.description || 'No description.')}</p>
         </div>
         <div class="watchlist-item-right">
-          <span class="card-price">$${parseFloat(item.price).toFixed(2)}</span>
+          <span class="card-price" style="font-size:1.1rem">$${parseFloat(item.price).toFixed(2)}</span>
           <button class="btn-remove" onclick="removeFromWatchlist(${item.listing_id})">Remove</button>
         </div>
       </div>`).join('');
@@ -351,7 +380,6 @@ async function removeFromWatchlist(itemId) {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-
     if (!data.success) throw new Error(data.message);
 
     document.getElementById(`wl-${itemId}`)?.remove();
@@ -362,10 +390,9 @@ async function removeFromWatchlist(itemId) {
         <div class="empty-state" style="padding:40px 0">
           <div class="empty-icon">♡</div>
           <h3>Your watchlist is empty</h3>
-          <p>Click "♡ Watchlist" on any listing to save it here.</p>
+          <p>Tap ♡ on any listing to save it here.</p>
         </div>`;
     }
-
     showToast('Removed from watchlist', 'success');
   } catch (err) {
     showToast(err.message || 'Could not remove item', 'error');
@@ -375,19 +402,14 @@ async function removeFromWatchlist(itemId) {
 // ── Delete listing ─────────────────────────────────────
 async function deleteListing(id) {
   if (!confirm('Are you sure you want to delete this listing?')) return;
-
   try {
     const res  = await fetch(`${API}/listings/delete/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-
     if (!data.success) throw new Error(data.message);
-
-    const card = document.querySelector(`[data-listing-id="${id}"]`);
-    if (card) card.remove();
-
+    document.querySelector(`[data-listing-id="${id}"]`)?.remove();
     showToast('Listing deleted', 'success');
   } catch (err) {
     showToast(err.message || 'Could not delete listing', 'error');
@@ -399,26 +421,26 @@ function openEditModal(id) {
   const listing = allListings.find((l) => l.id === id);
   if (!listing) return;
 
-  document.getElementById('edit-id').value          = listing.id;
-  document.getElementById('edit-title').value        = listing.title;
-  document.getElementById('edit-description').value  = listing.description || '';
-  document.getElementById('edit-price').value        = parseFloat(listing.price).toFixed(2);
-  document.getElementById('edit-category').value     = listing.category_id;
-  document.getElementById('edit-condition').value    = listing.condition || '';
+  document.getElementById('edit-id').value         = listing.id;
+  document.getElementById('edit-title').value       = listing.title;
+  document.getElementById('edit-description').value = listing.description || '';
+  document.getElementById('edit-price').value       = parseFloat(listing.price).toFixed(2);
+  document.getElementById('edit-category').value    = listing.category_id;
+  document.getElementById('edit-condition').value   = listing.condition || '';
   clearError(document.getElementById('edit-error'));
   document.getElementById('edit-modal').classList.remove('hidden');
 }
 
 async function handleEditListing(e) {
   e.preventDefault();
-  const id             = document.getElementById('edit-id').value;
-  const title          = document.getElementById('edit-title').value.trim();
-  const description    = document.getElementById('edit-description').value.trim();
-  const price          = document.getElementById('edit-price').value;
-  const category_id    = document.getElementById('edit-category').value;
-  const condition = document.getElementById('edit-condition').value;
-  const errEl     = document.getElementById('edit-error');
-  const btn       = document.getElementById('edit-btn');
+  const id          = document.getElementById('edit-id').value;
+  const title       = document.getElementById('edit-title').value.trim();
+  const description = document.getElementById('edit-description').value.trim();
+  const price       = document.getElementById('edit-price').value;
+  const category_id = document.getElementById('edit-category').value;
+  const condition   = document.getElementById('edit-condition').value;
+  const errEl       = document.getElementById('edit-error');
+  const btn         = document.getElementById('edit-btn');
 
   clearError(errEl);
   setLoading(btn, 'Saving...');
@@ -426,14 +448,10 @@ async function handleEditListing(e) {
   try {
     const res  = await fetch(`${API}/listings/update/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ title, description, price: parseFloat(price), category_id: parseInt(category_id), condition }),
     });
     const data = await res.json();
-
     if (!data.success) throw new Error(data.message);
 
     closeModal('edit-modal');
@@ -464,7 +482,6 @@ async function handleLogin(e) {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-
     if (!data.success) throw new Error(data.message);
 
     token       = data.data.token;
@@ -475,7 +492,7 @@ async function handleLogin(e) {
     closeModal('auth-modal');
     updateNavbar();
     fetchListings();
-    showToast(`Welcome back, ${currentUser.full_name.split(' ')[0]}!`, 'success');
+    showToast(`Welcome back, ${currentUser.full_name.split(' ')[0]}! 🎉`, 'success');
   } catch (err) {
     showError(errEl, err.message || 'Login failed. Please try again.');
   } finally {
@@ -502,10 +519,9 @@ async function handleRegister(e) {
       body: JSON.stringify({ full_name, email, password, university }),
     });
     const data = await res.json();
-
     if (!data.success) throw new Error(data.message);
 
-    showToast('Account created! Please log in.', 'success');
+    showToast('Account created! Please log in. 🎉', 'success');
     switchTab('login');
     document.getElementById('login-email').value = email;
   } catch (err) {
@@ -530,7 +546,6 @@ async function handleCreateListing(e) {
   setLoading(btn, 'Posting...');
 
   try {
-    // Use FormData so multer can handle the image files
     const fd = new FormData();
     fd.append('title',       title);
     fd.append('description', description);
@@ -545,17 +560,16 @@ async function handleCreateListing(e) {
 
     const res  = await fetch(`${API}/listings/add`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` }, // no Content-Type — let browser set multipart boundary
+      headers: { Authorization: `Bearer ${token}` },
       body: fd,
     });
     const data = await res.json();
-
     if (!data.success) throw new Error(data.message);
 
     closeModal('listing-modal');
     document.getElementById('image-preview').innerHTML = '';
     fetchListings();
-    showToast('Listing posted successfully!', 'success');
+    showToast('Listing posted successfully! 🎉', 'success');
   } catch (err) {
     showError(errEl, err.message || 'Could not post listing.');
   } finally {
@@ -577,7 +591,6 @@ function openCreateListing() {
   document.getElementById('listing-modal').classList.remove('hidden');
 }
 
-
 function closeModal(id) {
   document.getElementById(id).classList.add('hidden');
 }
@@ -596,10 +609,10 @@ function switchTab(tab) {
 }
 
 // ── Form helpers ───────────────────────────────────────
-function showError(el, msg) { el.textContent = msg; el.classList.remove('hidden'); }
-function clearError(el) { el.textContent = ''; el.classList.add('hidden'); }
-function setLoading(btn, text) { btn.disabled = true; btn.textContent = text; }
-function resetLoading(btn, text) { btn.disabled = false; btn.textContent = text; }
+function showError(el, msg)  { el.textContent = msg; el.classList.remove('hidden'); }
+function clearError(el)      { el.textContent = ''; el.classList.add('hidden'); }
+function setLoading(btn, t)  { btn.disabled = true;  btn.textContent = t; }
+function resetLoading(btn,t) { btn.disabled = false; btn.textContent = t; }
 
 // ── Toast ──────────────────────────────────────────────
 let toastTimer;
@@ -608,7 +621,7 @@ function showToast(msg, type = '') {
   toast.textContent = msg;
   toast.className = `toast${type ? ' ' + type : ''} show`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 3000);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
 }
 
 // ── Search debounce ────────────────────────────────────
