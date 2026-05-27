@@ -17,9 +17,10 @@ const CONDITION_CLASS = {
 };
 
 // ── State ─────────────────────────────────────────────
-let token       = localStorage.getItem('cm_token') || null;
-let currentUser = JSON.parse(localStorage.getItem('cm_user') || 'null');
-let allListings = [];
+let token          = localStorage.getItem('cm_token') || null;
+let currentUser    = JSON.parse(localStorage.getItem('cm_user') || 'null');
+let allListings    = [];
+let myListingsCache = {}; // id → listing, for edit modal lookup when main grid not loaded
 
 // ── Init ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -399,6 +400,117 @@ async function removeFromWatchlist(itemId) {
   }
 }
 
+// ── My Listings ────────────────────────────────────
+async function openMyListings() {
+  if (!token) { openAuth('login'); return; }
+  document.getElementById('my-listings-modal').classList.remove('hidden');
+  await fetchMyListings();
+}
+
+async function fetchMyListings() {
+  const body  = document.getElementById('my-listings-body');
+  const badge = document.getElementById('my-listings-badge');
+  body.innerHTML = '<div class="loading-state" style="padding:40px 0"><div class="spinner"></div><p>Loading...</p></div>';
+
+  try {
+    const res  = await fetch(`${API}/listings/my`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    const listings = data.data;
+
+    // Cache all for edit modal lookup
+    myListingsCache = {};
+    listings.forEach((l) => { myListingsCache[l.id] = l; });
+
+    // Badge
+    if (badge) {
+      badge.textContent = listings.length;
+      badge.classList.toggle('hidden', listings.length === 0);
+    }
+
+    if (listings.length === 0) {
+      renderMyListingsEmpty();
+      return;
+    }
+
+    body.innerHTML = listings.map(renderMyListingCard).join('');
+  } catch (err) {
+    body.innerHTML = `<p class="form-error" style="margin:0">${err.message || 'Could not load your listings.'}</p>`;
+  }
+}
+
+function renderMyListingCard(listing) {
+  const thumb    = listing.images && listing.images.length > 0 ? listing.images[0] : null;
+  const price    = parseFloat(listing.price).toFixed(2);
+  const category = CATEGORIES[listing.category_id] || listing.category_name || 'Other';
+  const date     = new Date(listing.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
+  const status   = listing.status || 'active';
+  const statusLabel = { active: 'Active', inactive: 'Deleted', sold: 'Sold' }[status] || status;
+  const statusClass = { active: 'status-active', inactive: 'status-inactive', sold: 'status-sold' }[status] || 'status-inactive';
+
+  const thumbHtml = thumb
+    ? `<img class="my-listing-thumb" src="${escapeHtml(thumb)}" alt="${escapeHtml(listing.title)}" loading="lazy" />`
+    : `<div class="my-listing-thumb-placeholder">📷</div>`;
+
+  return `
+    <div class="my-listing-card" id="ml-${listing.id}">
+      ${thumbHtml}
+      <div class="my-listing-info">
+        <div class="my-listing-title-row">
+          <span class="my-listing-title">${escapeHtml(listing.title)}</span>
+          <span class="status-badge ${statusClass}">${statusLabel}</span>
+        </div>
+        <div class="my-listing-meta">${category} · Listed ${date}</div>
+      </div>
+      <div class="my-listing-right">
+        <span class="my-listing-price">$${price}</span>
+        <div class="my-listing-actions">
+          <button class="btn-edit" onclick="openEditModal(${listing.id})">✏ Edit</button>
+          <button class="btn-delete" onclick="deleteListingFromMyListings(${listing.id})">🗑 Delete</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderMyListingsEmpty() {
+  document.getElementById('my-listings-body').innerHTML = `
+    <div class="empty-state" style="padding:48px 0">
+      <div class="empty-icon">🏷️</div>
+      <h3>No listings yet</h3>
+      <p>You haven't posted anything yet.</p>
+      <button class="btn btn-primary" style="margin-top:20px;display:inline-flex" onclick="closeModal('my-listings-modal');openCreateListing()">+ Create your first listing</button>
+    </div>`;
+}
+
+async function deleteListingFromMyListings(id) {
+  if (!confirm('Are you sure you want to delete this listing?')) return;
+  try {
+    const res  = await fetch(`${API}/listings/delete/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    document.getElementById(`ml-${id}`)?.remove();
+    document.querySelector(`[data-listing-id="${id}"]`)?.remove();
+    delete myListingsCache[id];
+
+    // Update badge count
+    const remaining = document.querySelectorAll('#my-listings-body .my-listing-card').length;
+    const badge = document.getElementById('my-listings-badge');
+    if (badge) { badge.textContent = remaining; badge.classList.toggle('hidden', remaining === 0); }
+    if (remaining === 0) renderMyListingsEmpty();
+
+    showToast('Listing deleted', 'success');
+  } catch (err) {
+    showToast(err.message || 'Could not delete listing', 'error');
+  }
+}
+
 // ── Delete listing ─────────────────────────────────────
 async function deleteListing(id) {
   if (!confirm('Are you sure you want to delete this listing?')) return;
@@ -410,6 +522,8 @@ async function deleteListing(id) {
     const data = await res.json();
     if (!data.success) throw new Error(data.message);
     document.querySelector(`[data-listing-id="${id}"]`)?.remove();
+    document.getElementById(`ml-${id}`)?.remove();
+    delete myListingsCache[id];
     showToast('Listing deleted', 'success');
   } catch (err) {
     showToast(err.message || 'Could not delete listing', 'error');
@@ -418,7 +532,7 @@ async function deleteListing(id) {
 
 // ── Edit listing ───────────────────────────────────────
 function openEditModal(id) {
-  const listing = allListings.find((l) => l.id === id);
+  const listing = allListings.find((l) => l.id === id) || myListingsCache[id];
   if (!listing) return;
 
   document.getElementById('edit-id').value         = listing.id;
@@ -456,6 +570,9 @@ async function handleEditListing(e) {
 
     closeModal('edit-modal');
     fetchListings();
+    if (!document.getElementById('my-listings-modal').classList.contains('hidden')) {
+      fetchMyListings();
+    }
     showToast('Listing updated successfully', 'success');
   } catch (err) {
     showError(errEl, err.message || 'Could not update listing.');

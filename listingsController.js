@@ -179,6 +179,34 @@ exports.updateListing = async (req, res) => {
   }
 };
 
+exports.getMyListings = async (req, res) => {
+  try {
+    const seller_id = req.user.id;
+
+    const result = await pool.query(
+      `SELECT l.*, c.name AS category_name
+       FROM listings l
+       LEFT JOIN categories c ON l.category_id = c.id
+       WHERE l.seller_id = $1
+       ORDER BY l.created_at DESC`,
+      [seller_id]
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result.rows,
+      message: 'Your listings fetched successfully',
+    });
+  } catch (error) {
+    console.error('Get my listings error:', error);
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Server error fetching your listings',
+    });
+  }
+};
+
 exports.deleteListing = async (req, res) => {
   try {
     const { id } = req.params;

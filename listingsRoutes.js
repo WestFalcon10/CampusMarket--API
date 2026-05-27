@@ -154,6 +154,7 @@ const updateRules = [
 ];
 
 router.post('/add', authenticateToken, upload.array('images', 5), listingRules, validate, listingsController.createListing);
+router.get('/my', authenticateToken, listingsController.getMyListings);
 router.get('/all', listingsController.getAllListings);
 router.put('/update/:id', authenticateToken, updateRules, validate, listingsController.updateListing);
 router.delete('/delete/:id', authenticateToken, listingsController.deleteListing);
