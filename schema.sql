@@ -23,7 +23,7 @@ CREATE TABLE listings (
     title       VARCHAR(255) NOT NULL,
     description TEXT,
     price       DECIMAL(10, 2) NOT NULL,
-    condition   VARCHAR(50),
+    condition   VARCHAR(50) NOT NULL DEFAULT 'used',
     status      VARCHAR(50) DEFAULT 'active',
     images      TEXT[] DEFAULT ARRAY[]::TEXT[],
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

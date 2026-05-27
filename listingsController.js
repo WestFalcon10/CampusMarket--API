@@ -20,7 +20,7 @@ exports.createListing = async (req, res) => {
       `INSERT INTO listings (seller_id, category_id, title, description, price, condition, status, images)
        VALUES ($1, $2, $3, $4, $5, $6, 'active', $7)
        RETURNING id, seller_id, category_id, title, description, price, condition, status, images, created_at`,
-      [seller_id, category_id, title, description ?? null, price, condition ?? null, images]
+      [seller_id, category_id, title, description ?? null, price, condition || 'used', images]
     );
 
     const newListing = result.rows[0];
