@@ -12,6 +12,7 @@ const listingsRoutes      = require('./listingsRoutes');
 const usersRoutes         = require('./routes/users');
 const watchlistRoutes     = require('./routes/watchlist');
 const notificationsRoutes = require('./routes/notifications');
+const ordersRoutes        = require('./routes/orders');
 
 const path = require('path');
 
@@ -65,6 +66,7 @@ app.use('/listings', listingsRoutes);
 app.use('/users',    usersRoutes);
 app.use('/watchlist', watchlistRoutes);
 app.use('/notifications', notificationsRoutes);
+app.use('/orders', ordersRoutes);
 
 // ── 404 handler ──────────────────────────────────────────
 app.use((req, res) => {

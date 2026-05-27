@@ -17,10 +17,13 @@ const CONDITION_CLASS = {
 };
 
 // ── State ─────────────────────────────────────────────
-let token          = localStorage.getItem('cm_token') || null;
-let currentUser    = JSON.parse(localStorage.getItem('cm_user') || 'null');
-let allListings    = [];
+let token           = localStorage.getItem('cm_token') || null;
+let currentUser     = JSON.parse(localStorage.getItem('cm_user') || 'null');
+let allListings     = [];
 let myListingsCache = {}; // id → listing, for edit modal lookup when main grid not loaded
+let pendingBuyId    = null; // listing id staged in the buy modal
+let ordersData      = [];   // cached orders for the orders modal
+let currentOrderTab = 'buying';
 
 // ── Init ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -157,6 +160,10 @@ function renderCard(listing) {
        </div>`
     : '';
 
+  const buyBtn = !isOwner && token
+    ? `<button class="btn-buy" onclick="openBuyModal(${listing.id})">🛒 Buy</button>`
+    : '';
+
   return `
     <div class="card" data-listing-id="${listing.id}">
       <div class="card-media">
@@ -178,7 +185,7 @@ function renderCard(listing) {
         </div>
         <div class="card-footer">
           <span class="card-price">$${price}</span>
-          ${actionBtns}
+          ${actionBtns}${buyBtn}
         </div>
       </div>
     </div>`;
@@ -397,6 +404,177 @@ async function removeFromWatchlist(itemId) {
     showToast('Removed from watchlist', 'success');
   } catch (err) {
     showToast(err.message || 'Could not remove item', 'error');
+  }
+}
+
+// ── Buy Now / Purchase flow ────────────────────────
+function openBuyModal(listingId) {
+  if (!token) { openAuth('login'); return; }
+
+  const listing = allListings.find((l) => l.id === listingId);
+  if (!listing) return;
+
+  pendingBuyId = listingId;
+
+  document.getElementById('buy-item-title').textContent  = listing.title;
+  document.getElementById('buy-item-seller').textContent = `Sold by ${listing.seller_name || 'Unknown'}`;
+  document.getElementById('buy-item-price').textContent  = `$${parseFloat(listing.price).toFixed(2)}`;
+
+  const thumbEl = document.getElementById('buy-item-thumb');
+  if (listing.images && listing.images.length > 0) {
+    thumbEl.className = 'buy-thumb';
+    thumbEl.innerHTML = `<img src="${escapeHtml(listing.images[0])}" alt="${escapeHtml(listing.title)}" />`;
+  } else {
+    thumbEl.className = 'buy-thumb-placeholder';
+    thumbEl.textContent = '📷';
+  }
+
+  clearError(document.getElementById('buy-error'));
+  document.getElementById('buy-modal').classList.remove('hidden');
+}
+
+async function confirmPurchase() {
+  if (!pendingBuyId) return;
+  const btn   = document.getElementById('buy-btn');
+  const errEl = document.getElementById('buy-error');
+  clearError(errEl);
+  setLoading(btn, 'Processing…');
+
+  try {
+    const res  = await fetch(`${API}/orders/${pendingBuyId}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    closeModal('buy-modal');
+    pendingBuyId = null;
+    fetchListings();
+    showToast('Order placed! The seller will confirm soon 🎉', 'success');
+  } catch (err) {
+    showError(errEl, err.message || 'Could not place order.');
+  } finally {
+    resetLoading(btn, 'Confirm Purchase');
+  }
+}
+
+// ── My Orders modal ────────────────────────────────
+async function openMyOrders() {
+  if (!token) { openAuth('login'); return; }
+  document.getElementById('orders-modal').classList.remove('hidden');
+  await fetchOrders();
+}
+
+async function fetchOrders() {
+  const body = document.getElementById('orders-body');
+  body.innerHTML = '<div class="loading-state" style="padding:40px 0"><div class="spinner"></div><p>Loading...</p></div>';
+
+  try {
+    const res  = await fetch(`${API}/orders`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    ordersData = data.data;
+    renderOrders();
+  } catch (err) {
+    body.innerHTML = `<p class="form-error" style="margin:0">${err.message || 'Could not load orders.'}</p>`;
+  }
+}
+
+function switchOrderTab(tab) {
+  currentOrderTab = tab;
+  document.getElementById('tab-buying').classList.toggle('active',  tab === 'buying');
+  document.getElementById('tab-selling').classList.toggle('active', tab === 'selling');
+  renderOrders();
+}
+
+function renderOrders() {
+  const body     = document.getElementById('orders-body');
+  const filtered = ordersData.filter((o) =>
+    currentOrderTab === 'buying' ? o.buyer_id === currentUser.id : o.seller_id === currentUser.id
+  );
+
+  if (filtered.length === 0) {
+    body.innerHTML = `
+      <div class="empty-state" style="padding:48px 0">
+        <div class="empty-icon">${currentOrderTab === 'buying' ? '🛒' : '💰'}</div>
+        <h3>${currentOrderTab === 'buying' ? 'No purchases yet' : 'No sales yet'}</h3>
+        <p>${currentOrderTab === 'buying' ? 'Browse listings and tap Buy to purchase.' : 'Post a listing to start selling!'}</p>
+      </div>`;
+    return;
+  }
+
+  body.innerHTML = filtered.map(renderOrderRow).join('');
+}
+
+const ORDER_STATUS_LABEL = { pending: 'Pending', confirmed: 'Confirmed', completed: 'Completed', cancelled: 'Cancelled' };
+const ORDER_STATUS_CLASS = { pending: 'status-pending', confirmed: 'status-confirmed', completed: 'status-completed', cancelled: 'status-cancelled' };
+
+function renderOrderRow(order) {
+  const isSeller     = order.seller_id === currentUser.id;
+  const date         = new Date(order.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' });
+  const price        = parseFloat(order.price).toFixed(2);
+  const statusLabel  = ORDER_STATUS_LABEL[order.status] || order.status;
+  const statusClass  = ORDER_STATUS_CLASS[order.status] || '';
+  const counterparty = isSeller
+    ? `Buyer: ${escapeHtml(order.buyer_name  || 'Unknown')}`
+    : `Seller: ${escapeHtml(order.seller_name || 'Unknown')}`;
+
+  const thumb = order.listing_images && order.listing_images.length > 0
+    ? `<img class="order-thumb" src="${escapeHtml(order.listing_images[0])}" alt="${escapeHtml(order.listing_title || '')}" loading="lazy" />`
+    : `<div class="order-thumb-placeholder">📦</div>`;
+
+  // Build action buttons
+  let actions = '';
+  if (isSeller && order.status === 'pending') {
+    actions = `
+      <button class="btn-order-action btn-order-confirm" onclick="updateOrderStatus(${order.id},'confirmed')">✓ Confirm</button>
+      <button class="btn-order-action btn-order-cancel"  onclick="updateOrderStatus(${order.id},'cancelled')">✕ Cancel</button>`;
+  } else if (isSeller && order.status === 'confirmed') {
+    actions = `
+      <button class="btn-order-action btn-order-complete" onclick="updateOrderStatus(${order.id},'completed')">✔ Complete</button>
+      <button class="btn-order-action btn-order-cancel"   onclick="updateOrderStatus(${order.id},'cancelled')">✕ Cancel</button>`;
+  } else if (!isSeller && order.status === 'pending') {
+    actions = `<button class="btn-order-action btn-order-cancel" onclick="updateOrderStatus(${order.id},'cancelled')">✕ Cancel</button>`;
+  }
+
+  return `
+    <div class="order-row" id="order-${order.id}">
+      ${thumb}
+      <div class="order-info">
+        <div class="order-title">${escapeHtml(order.listing_title || 'Deleted listing')}</div>
+        <div class="order-meta">${counterparty} · ${date}</div>
+      </div>
+      <div class="order-right">
+        <span class="order-price">$${price}</span>
+        <span class="status-badge ${statusClass}">${statusLabel}</span>
+        ${actions ? `<div class="order-actions">${actions}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+async function updateOrderStatus(orderId, newStatus) {
+  try {
+    const res  = await fetch(`${API}/orders/${orderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    // Update local cache and re-render
+    const idx = ordersData.findIndex((o) => o.id === orderId);
+    if (idx !== -1) ordersData[idx] = { ...ordersData[idx], status: newStatus };
+    renderOrders();
+
+    // If cancelled the listing is reactivated — refresh main grid
+    if (newStatus === 'cancelled') fetchListings();
+
+    const labels = { confirmed: 'Order confirmed 🎉', completed: 'Order completed ✅', cancelled: 'Order cancelled' };
+    showToast(labels[newStatus] || `Order ${newStatus}`, newStatus === 'cancelled' ? 'error' : 'success');
+  } catch (err) {
+    showToast(err.message || 'Could not update order', 'error');
   }
 }
 

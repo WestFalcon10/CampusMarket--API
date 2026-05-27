@@ -51,3 +51,15 @@ CREATE TABLE notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_notification_user FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+-- Status values: pending, confirmed, completed, cancelled
+CREATE TABLE IF NOT EXISTS orders (
+    id         SERIAL PRIMARY KEY,
+    listing_id INTEGER REFERENCES listings(id) ON DELETE SET NULL,
+    buyer_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    seller_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    price      NUMERIC(10,2) NOT NULL,
+    status     VARCHAR(50) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);

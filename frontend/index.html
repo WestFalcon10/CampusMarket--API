@@ -26,6 +26,7 @@
         <div id="nav-user" class="nav-user hidden">
           <button class="btn btn-nav-secondary" onclick="openCreateListing()">+ Sell Item</button>
           <button class="btn btn-nav-ghost" onclick="openMyListings()">📋 My Listings</button>
+          <button class="btn btn-nav-ghost" onclick="openMyOrders()">📦 Orders</button>
           <button class="btn btn-nav-ghost" onclick="openWatchlist()">♡ Watchlist</button>
           <div class="bell-wrapper">
             <button class="bell-btn" id="bell-btn" onclick="toggleNotifications(event)">
@@ -299,6 +300,41 @@
       <h2 class="modal-title">My Watchlist ❤️</h2>
       <div id="watchlist-body">
         <div class="loading-state"><div class="spinner"></div><p>Loading...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIRM PURCHASE MODAL -->
+  <div id="buy-modal" class="modal-overlay hidden" onclick="closeModalOnOverlay(event, 'buy-modal')">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('buy-modal')">&times;</button>
+      <h2 class="modal-title">Confirm Purchase 🛒</h2>
+      <div class="buy-confirm-card">
+        <div id="buy-item-thumb" class="buy-thumb-placeholder">📷</div>
+        <div class="buy-item-info">
+          <div id="buy-item-title" class="buy-item-title"></div>
+          <div id="buy-item-seller" class="buy-item-seller"></div>
+          <div id="buy-item-price" class="buy-item-price"></div>
+        </div>
+      </div>
+      <p class="buy-note">The listing will be marked as sold and the seller will be notified to confirm.</p>
+      <div id="buy-error" class="form-error hidden"></div>
+      <button class="btn btn-primary btn-full" id="buy-btn" onclick="confirmPurchase()">Confirm Purchase</button>
+      <button class="btn btn-cancel btn-full" style="margin-top:10px" onclick="closeModal('buy-modal')">Cancel</button>
+    </div>
+  </div>
+
+  <!-- MY ORDERS MODAL -->
+  <div id="orders-modal" class="modal-overlay hidden" onclick="closeModalOnOverlay(event, 'orders-modal')">
+    <div class="modal modal-wide">
+      <button class="modal-close" onclick="closeModal('orders-modal')">&times;</button>
+      <h2 class="modal-title">My Orders 📦</h2>
+      <div class="modal-tabs" style="margin-bottom:20px">
+        <button id="tab-buying"  class="modal-tab active" onclick="switchOrderTab('buying')">🛒 Buying</button>
+        <button id="tab-selling" class="modal-tab"        onclick="switchOrderTab('selling')">💰 Selling</button>
+      </div>
+      <div id="orders-body">
+        <div class="loading-state" style="padding:40px 0"><div class="spinner"></div><p>Loading...</p></div>
       </div>
     </div>
   </div>

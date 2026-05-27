@@ -999,6 +999,160 @@ body {
 .footer-sep  { color: rgba(255,255,255,.3); }
 .footer-copy { color: rgba(255,255,255,.45); font-size: .88rem; }
 
+/* ── Buy button ───────────────────────────────────── */
+.btn-buy {
+  padding: 7px 14px;
+  border-radius: var(--radius-xs);
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+  background: linear-gradient(135deg, var(--green), var(--green-dark));
+  color: var(--white);
+  border: none;
+  box-shadow: 0 2px 8px rgba(16,185,129,.28);
+  white-space: nowrap;
+}
+.btn-buy:hover {
+  background: linear-gradient(135deg, var(--green-dark), #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(16,185,129,.42);
+}
+
+/* ── Buy confirm modal ────────────────────────────── */
+.buy-confirm-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--grey-50);
+  border: 1px solid var(--grey-200);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.buy-thumb {
+  width: 84px;
+  height: 84px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.buy-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.buy-thumb-placeholder {
+  width: 84px;
+  height: 84px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--grey-100), #e8eef5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.buy-item-info  { flex: 1; min-width: 0; }
+.buy-item-title { font-weight: 700; color: var(--grey-800); margin-bottom: 4px; font-size: 1rem; line-height: 1.4; }
+.buy-item-seller{ font-size: .82rem; color: var(--grey-500); margin-bottom: 8px; }
+.buy-item-price { font-size: 1.5rem; font-weight: 900; color: var(--green); letter-spacing: -.4px; }
+
+.buy-note {
+  font-size: .83rem;
+  color: var(--grey-400);
+  margin-bottom: 18px;
+  line-height: 1.55;
+}
+
+.btn-cancel {
+  background: var(--grey-100);
+  color: var(--grey-600);
+  border: 1.5px solid var(--grey-200) !important;
+}
+.btn-cancel:hover { background: var(--grey-200); color: var(--grey-800); transform: none; box-shadow: none; }
+
+/* ── Orders ───────────────────────────────────────── */
+.order-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--grey-100);
+}
+.order-row:last-child { border-bottom: none; }
+
+.order-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--grey-100);
+}
+.order-thumb-placeholder {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--grey-100), #e8eef5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.order-info { flex: 1; min-width: 0; }
+.order-title {
+  font-weight: 700;
+  color: var(--grey-800);
+  font-size: .92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+.order-meta { font-size: .78rem; color: var(--grey-400); }
+
+.order-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.order-price {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--green);
+  letter-spacing: -.3px;
+}
+.order-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Order status badge colours */
+.status-pending   { background: #fef3c7; color: #b45309; }
+.status-confirmed { background: #dbeafe; color: #1d4ed8; }
+.status-completed { background: #dcfce7; color: #15803d; }
+.status-cancelled { background: #fee2e2; color: #b91c1c; }
+
+.btn-order-action {
+  padding: 5px 12px;
+  border-radius: var(--radius-xs);
+  font-size: .75rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition);
+  border: 1.5px solid transparent;
+  white-space: nowrap;
+}
+.btn-order-confirm { background: var(--indigo-light); color: var(--indigo); border-color: var(--indigo-light); }
+.btn-order-confirm:hover { background: var(--indigo); color: var(--white); border-color: var(--indigo); }
+.btn-order-complete { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+.btn-order-complete:hover { background: var(--green); color: var(--white); border-color: var(--green); }
+.btn-order-cancel { background: #fef2f2; color: var(--red); border-color: #fecaca; }
+.btn-order-cancel:hover { background: var(--red); color: var(--white); border-color: var(--red); }
+
 /* ── My Listings ──────────────────────────────────── */
 .my-listings-header {
   display: flex;
