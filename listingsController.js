@@ -2,7 +2,8 @@ const pool = require('./src/config/db');
 
 exports.createListing = async (req, res) => {
   try {
-    const { title, description, price, category_id, condition } = req.body;
+    const { title, description, price, category_id } = req.body;
+    const condition = req.body.condition || 'used';
     const seller_id = req.user.id;
 
     // req.files is populated by multer (multipart/form-data)
@@ -20,7 +21,7 @@ exports.createListing = async (req, res) => {
       `INSERT INTO listings (seller_id, category_id, title, description, price, condition, status, images)
        VALUES ($1, $2, $3, $4, $5, $6, 'active', $7)
        RETURNING id, seller_id, category_id, title, description, price, condition, status, images, created_at`,
-      [seller_id, category_id, title, description ?? null, price, condition || 'used', images]
+      [seller_id, category_id, title, description ?? null, price, condition, images]
     );
 
     const newListing = result.rows[0];
