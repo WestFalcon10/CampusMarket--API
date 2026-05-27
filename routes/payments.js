@@ -144,24 +144,20 @@ router.post('/create-checkout', authenticateToken, async (req, res) => {
 });
 
 // ── POST /payments/webhook ─────────────────────────────────────────────────
-// NOTE: This route uses express.raw() in app.js so the body arrives as a
-// Buffer — required for Stripe signature verification.
+// express.raw() in app.js ensures req.body is a raw Buffer so Stripe can
+// verify the signature against the exact bytes it sent.
 router.post('/webhook', async (req, res) => {
   let event;
 
   try {
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-    if (webhookSecret) {
-      // Verify signature when secret is configured (production)
-      const sig = req.headers['stripe-signature'];
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-    } else {
-      // Dev/test: parse raw buffer or use already-parsed body
-      event = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
-    }
+    const sig = req.headers['stripe-signature'];
+    event = stripe.webhooks.constructEvent(
+      req.body,                               // raw Buffer from express.raw()
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
   } catch (err) {
-    console.error('Webhook signature error:', err.message);
+    console.error('Webhook signature verification failed:', err.message);
     return res.status(400).json({ error: `Webhook error: ${err.message}` });
   }
 
