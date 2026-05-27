@@ -740,6 +740,9 @@ body {
   overflow-y: auto;
 }
 .modal-wide { max-width: 580px; }
+
+/* Edit modal must sit above My Listings modal (both z-index 200, edit comes earlier in DOM) */
+#edit-modal { z-index: 300; }
 @keyframes slideUp { from { transform: translateY(22px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .modal-close {
