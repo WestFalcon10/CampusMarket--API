@@ -123,13 +123,38 @@
  *         description: Listing not found
  */
 const express = require('express');
+const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const listingsController = require('./listingsController');
 const { authenticateToken } = require('./middleware/auth');
 
-router.post('/add', authenticateToken, listingsController.createListing);
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, data: null, message: errors.array()[0].msg });
+  }
+  next();
+};
+
+const listingRules = [
+  body('title').trim().notEmpty().withMessage('title is required'),
+  body('description').optional().isString().withMessage('description must be a string'),
+  body('price').isFloat({ gt: 0 }).withMessage('price must be a positive number'),
+  body('category_id').isInt({ gt: 0 }).withMessage('category_id must be a positive integer'),
+  body('condition').optional().isString(),
+];
+
+const updateRules = [
+  body('title').optional().trim().notEmpty().withMessage('title cannot be empty'),
+  body('description').optional().isString(),
+  body('price').optional().isFloat({ gt: 0 }).withMessage('price must be a positive number'),
+  body('category_id').optional().isInt({ gt: 0 }).withMessage('category_id must be a positive integer'),
+  body('condition').optional().isString(),
+];
+
+router.post('/add', authenticateToken, listingRules, validate, listingsController.createListing);
 router.get('/all', listingsController.getAllListings);
-router.put('/update/:id', authenticateToken, listingsController.updateListing);
+router.put('/update/:id', authenticateToken, updateRules, validate, listingsController.updateListing);
 router.delete('/delete/:id', authenticateToken, listingsController.deleteListing);
 
 module.exports = router;
