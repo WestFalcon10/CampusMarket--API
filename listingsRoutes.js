@@ -124,6 +124,7 @@
  */
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const { upload } = require('./src/config/cloudinary');
 const router = express.Router();
 const listingsController = require('./listingsController');
 const { authenticateToken } = require('./middleware/auth');
@@ -152,7 +153,7 @@ const updateRules = [
   body('condition').optional().isString(),
 ];
 
-router.post('/add', authenticateToken, listingRules, validate, listingsController.createListing);
+router.post('/add', authenticateToken, upload.array('images', 5), listingRules, validate, listingsController.createListing);
 router.get('/all', listingsController.getAllListings);
 router.put('/update/:id', authenticateToken, updateRules, validate, listingsController.updateListing);
 router.delete('/delete/:id', authenticateToken, listingsController.deleteListing);

@@ -5,6 +5,9 @@ exports.createListing = async (req, res) => {
     const { title, description, price, category_id, condition } = req.body;
     const seller_id = req.user.id;
 
+    // req.files is populated by multer (multipart/form-data)
+    const images = req.files ? req.files.map((f) => f.path) : [];
+
     if (!title || price == null || !category_id) {
       return res.status(400).json({
         success: false,
@@ -14,10 +17,10 @@ exports.createListing = async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO listings (seller_id, category_id, title, description, price, condition, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'active')
-       RETURNING id, seller_id, category_id, title, description, price, condition, status, created_at`,
-      [seller_id, category_id, title, description ?? null, price, condition ?? null]
+      `INSERT INTO listings (seller_id, category_id, title, description, price, condition, status, images)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active', $7)
+       RETURNING id, seller_id, category_id, title, description, price, condition, status, images, created_at`,
+      [seller_id, category_id, title, description ?? null, price, condition ?? null, images]
     );
 
     const newListing = result.rows[0];
@@ -75,7 +78,7 @@ exports.getAllListings = async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT l.id, l.seller_id, l.category_id, l.title, l.description, l.price, l.condition, l.status, l.created_at, l.updated_at,
+      `SELECT l.id, l.seller_id, l.category_id, l.title, l.description, l.price, l.condition, l.status, l.images, l.created_at, l.updated_at,
               u.full_name AS seller_name, u.university AS seller_university
        FROM listings l
        JOIN users u ON l.seller_id = u.id

@@ -25,6 +25,7 @@ CREATE TABLE listings (
     price       DECIMAL(10, 2) NOT NULL,
     condition   VARCHAR(50),
     status      VARCHAR(50) DEFAULT 'active',
+    images      TEXT[] DEFAULT ARRAY[]::TEXT[],
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_listing_seller   FOREIGN KEY (seller_id)   REFERENCES users(id),
