@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment Successful — CampusMarket</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.12);
+      padding: 56px 48px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      animation: slideUp .4s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    .icon-ring {
+      width: 100px;
+      height: 100px;
+      background: linear-gradient(135deg, #10B981, #059669);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 28px;
+      box-shadow: 0 8px 28px rgba(16,185,129,.4);
+      animation: pop .5s .2s ease both;
+    }
+    @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .icon-ring svg { width: 52px; height: 52px; stroke: #fff; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #0F172A;
+      margin-bottom: 14px;
+      letter-spacing: -.4px;
+    }
+    p {
+      font-size: 1rem;
+      color: #64748B;
+      line-height: 1.7;
+      margin-bottom: 36px;
+    }
+
+    .order-badge {
+      display: inline-block;
+      background: #f0fdf4;
+      border: 1.5px solid #bbf7d0;
+      color: #15803d;
+      border-radius: 12px;
+      padding: 12px 22px;
+      font-size: .88rem;
+      font-weight: 600;
+      margin-bottom: 36px;
+    }
+    #order-id-text { font-weight: 800; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: all .18s;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4F46E5, #7C3AED);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(79,70,229,.35);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 22px rgba(79,70,229,.5); transform: translateY(-2px); }
+
+    .brand {
+      margin-top: 40px;
+      font-size: .82rem;
+      color: #94A3B8;
+    }
+    .brand strong { color: #64748B; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-ring">
+      <svg viewBox="0 0 24 24">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
+
+    <h1>Payment Successful!</h1>
+    <p>Your payment was processed successfully. The seller has been notified and will confirm your order shortly.</p>
+
+    <div class="order-badge" id="order-badge" style="display:none">
+      Order <span id="order-id-text"></span> is pending confirmation
+    </div>
+
+    <a href="/" class="btn btn-primary">← Back to Marketplace</a>
+
+    <div class="brand">🎓 <strong>CampusMarket</strong> — Built for students</div>
+  </div>
+
+  <script>
+    const params  = new URLSearchParams(window.location.search);
+    const orderId = params.get('order_id');
+    if (orderId) {
+      document.getElementById('order-id-text').textContent = `#${orderId}`;
+      document.getElementById('order-badge').style.display = 'inline-block';
+    }
+  </script>
+</body>
+</html>

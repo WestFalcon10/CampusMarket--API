@@ -1,6 +1,9 @@
 // Use relative URL so it always hits whatever server served this page
 const API = '';
 
+// Stripe publishable key (used if switching to Stripe.js Elements in future)
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51Tbik93zThIk0yq4IreCFMlM6xCx24DvO5YidfaBCGJkcVVgNmFzhfTjSFzApJBqWcocxK0A39mQLWUWzbGrJs1J00OYUGkzwp';
+
 const CATEGORIES = {
   1: 'Textbooks', 2: 'Electronics', 3: 'Furniture', 4: 'Clothing',
   5: 'Sports', 6: 'Music', 7: 'Gaming', 8: 'Appliances',
@@ -438,23 +441,21 @@ async function confirmPurchase() {
   const btn   = document.getElementById('buy-btn');
   const errEl = document.getElementById('buy-error');
   clearError(errEl);
-  setLoading(btn, 'Processing…');
+  setLoading(btn, 'Redirecting to checkout…');
 
   try {
-    const res  = await fetch(`${API}/orders/${pendingBuyId}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+    const res  = await fetch(`${API}/payments/create-checkout`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ listing_id: pendingBuyId }),
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.message);
 
-    closeModal('buy-modal');
-    pendingBuyId = null;
-    fetchListings();
-    showToast('Order placed! The seller will confirm soon 🎉', 'success');
+    // Redirect to Stripe-hosted checkout page
+    window.location.href = data.data.url;
   } catch (err) {
-    showError(errEl, err.message || 'Could not place order.');
-  } finally {
+    showError(errEl, err.message || 'Could not start checkout.');
     resetLoading(btn, 'Confirm Purchase');
   }
 }

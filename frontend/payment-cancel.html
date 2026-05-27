@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment Cancelled — CampusMarket</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: linear-gradient(135deg, #fef2f2 0%, #faf5ff 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.12);
+      padding: 56px 48px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      animation: slideUp .4s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    .icon-ring {
+      width: 100px;
+      height: 100px;
+      background: linear-gradient(135deg, #EF4444, #DC2626);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 28px;
+      box-shadow: 0 8px 28px rgba(239,68,68,.38);
+      animation: pop .5s .2s ease both;
+    }
+    @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .icon-ring svg { width: 52px; height: 52px; stroke: #fff; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #0F172A;
+      margin-bottom: 14px;
+      letter-spacing: -.4px;
+    }
+    p {
+      font-size: 1rem;
+      color: #64748B;
+      line-height: 1.7;
+      margin-bottom: 36px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: all .18s;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4F46E5, #7C3AED);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(79,70,229,.35);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 22px rgba(79,70,229,.5); transform: translateY(-2px); }
+    .btn-secondary {
+      background: #F1F5F9;
+      color: #475569;
+      margin-left: 12px;
+      border: 1.5px solid #E2E8F0;
+    }
+    .btn-secondary:hover { background: #E2E8F0; }
+
+    .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
+
+    .brand {
+      margin-top: 40px;
+      font-size: .82rem;
+      color: #94A3B8;
+    }
+    .brand strong { color: #64748B; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-ring">
+      <svg viewBox="0 0 24 24">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </div>
+
+    <h1>Payment Cancelled</h1>
+    <p>Your payment was not completed and no charge was made. The listing has been restored and is available again.</p>
+
+    <div class="actions">
+      <a href="/" class="btn btn-primary">← Back to Marketplace</a>
+    </div>
+
+    <div class="brand">🎓 <strong>CampusMarket</strong> — Built for students</div>
+  </div>
+
+  <script>
+    // If we have an order_id, cancel the pending order so the listing becomes active again
+    const params  = new URLSearchParams(window.location.search);
+    const orderId = params.get('order_id');
+    const token   = localStorage.getItem('cm_token');
+
+    if (orderId && token) {
+      fetch(`/orders/${orderId}/status`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ status: 'cancelled' }),
+      }).catch(() => {}); // fire-and-forget, page still works if it fails
+    }
+  </script>
+</body>
+</html>

@@ -13,6 +13,7 @@ const usersRoutes         = require('./routes/users');
 const watchlistRoutes     = require('./routes/watchlist');
 const notificationsRoutes = require('./routes/notifications');
 const ordersRoutes        = require('./routes/orders');
+const paymentsRoutes      = require('./routes/payments');
 
 const path = require('path');
 
@@ -34,6 +35,9 @@ app.use(cors({
 
 // ── Request logging ─────────────────────────────────────
 app.use(morgan('dev'));
+
+// ── Stripe webhook needs raw body — must come BEFORE express.json() ─────────
+app.use('/payments/webhook', express.raw({ type: 'application/json' }));
 
 // ── Body parsing ─────────────────────────────────────────
 app.use(express.json());
@@ -66,7 +70,8 @@ app.use('/listings', listingsRoutes);
 app.use('/users',    usersRoutes);
 app.use('/watchlist', watchlistRoutes);
 app.use('/notifications', notificationsRoutes);
-app.use('/orders', ordersRoutes);
+app.use('/orders',   ordersRoutes);
+app.use('/payments', paymentsRoutes);
 
 // ── 404 handler ──────────────────────────────────────────
 app.use((req, res) => {
