@@ -135,7 +135,7 @@
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="reg-password" placeholder="Min. 6 characters" required minlength="6" />
+          <input type="password" id="reg-password" placeholder="Min. 8 characters" required minlength="8" />
         </div>
         <div class="form-group">
           <label>University</label>
@@ -194,6 +194,14 @@
             <option value="fair">Fair</option>
             <option value="poor">Poor</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label>Images <span class="label-hint">(up to 5 — jpg, png, webp)</span></label>
+          <label class="img-upload-label" for="listing-images">
+            <span id="img-upload-text">📷 Choose images…</span>
+            <input type="file" id="listing-images" accept=".jpg,.jpeg,.png,.webp" multiple />
+          </label>
+          <div id="image-preview" class="img-preview-grid"></div>
         </div>
         <div id="listing-error" class="form-error hidden"></div>
         <button type="submit" class="btn btn-primary btn-full" id="listing-btn">Post Listing</button>

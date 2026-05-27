@@ -11,7 +11,9 @@
   --grey-100:    #f1f5f9;
   --grey-200:    #e2e8f0;
   --grey-400:    #94a3b8;
+  --grey-500:    #64748b;
   --grey-600:    #475569;
+  --grey-700:    #334155;
   --grey-800:    #1e293b;
   --white:       #ffffff;
   --shadow-sm:   0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
@@ -684,6 +686,96 @@ body {
 }
 .toast.success { background: var(--green); }
 .toast.error   { background: var(--red); }
+
+/* ── Card image ───────────────────────────────────── */
+.card-image {
+  width: calc(100% + 40px);
+  margin: -20px -20px 14px -20px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: var(--radius) var(--radius) 0 0;
+  display: block;
+}
+
+.card-img-placeholder {
+  width: calc(100% + 40px);
+  margin: -20px -20px 14px -20px;
+  height: 180px;
+  background: var(--grey-100);
+  border-radius: var(--radius) var(--radius) 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--grey-400);
+  font-size: .82rem;
+  font-weight: 500;
+}
+.card-img-placeholder span { font-size: 1.8rem; }
+
+/* ── Image upload ──────────────────────────────────── */
+.label-hint {
+  font-weight: 400;
+  color: var(--grey-400);
+  font-size: .78rem;
+}
+
+.img-upload-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1.5px dashed var(--grey-200);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--grey-50);
+  transition: border-color var(--transition), background var(--transition);
+  font-size: .88rem;
+  color: var(--grey-600);
+}
+.img-upload-label:hover { border-color: var(--blue); background: var(--blue-light); color: var(--blue); }
+.img-upload-label input[type="file"] { display: none; }
+
+.img-preview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.img-preview-item {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1.5px solid var(--grey-200);
+}
+.img-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.img-preview-item .remove-preview {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: .7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
 
 /* ── Responsive ───────────────────────────────────── */
 @media (max-width: 600px) {

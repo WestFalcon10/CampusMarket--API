@@ -15,6 +15,31 @@ let allListings = [];
 document.addEventListener('DOMContentLoaded', () => {
   updateNavbar();
   fetchListings();
+
+  // Image preview for create listing
+  const fileInput = document.getElementById('listing-images');
+  if (fileInput) {
+    fileInput.addEventListener('change', () => {
+      const preview = document.getElementById('image-preview');
+      const label   = document.getElementById('img-upload-text');
+      preview.innerHTML = '';
+      const files = Array.from(fileInput.files).slice(0, 5);
+      label.textContent = files.length
+        ? `📷 ${files.length} file${files.length > 1 ? 's' : ''} selected`
+        : '📷 Choose images…';
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const item = document.createElement('div');
+          item.className = 'img-preview-item';
+          item.innerHTML = `<img src="${ev.target.result}" /><button class="remove-preview" type="button">✕</button>`;
+          item.querySelector('.remove-preview').onclick = () => item.remove();
+          preview.appendChild(item);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+  }
 });
 
 // ── Auth state ────────────────────────────────────────
@@ -89,21 +114,27 @@ async function fetchListings() {
 }
 
 function renderCard(listing) {
-  const category = CATEGORIES[listing.category_id] || 'Other';
-  const price    = parseFloat(listing.price).toFixed(2);
-  const desc     = listing.description || 'No description provided.';
-  const date     = new Date(listing.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' });
-  const isOwner  = currentUser && listing.seller_id === currentUser.id;
+  const category  = CATEGORIES[listing.category_id] || 'Other';
+  const price     = parseFloat(listing.price).toFixed(2);
+  const desc      = listing.description || 'No description provided.';
+  const date      = new Date(listing.created_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short' });
+  const isOwner   = currentUser && listing.seller_id === currentUser.id;
+  const firstImg  = listing.images && listing.images.length > 0 ? listing.images[0] : null;
+
+  const imageHtml = firstImg
+    ? `<img class="card-image" src="${escapeHtml(firstImg)}" alt="${escapeHtml(listing.title)}" loading="lazy" />`
+    : `<div class="card-img-placeholder"><span>📷</span>No Image</div>`;
 
   const actionBtn = isOwner
     ? `<div class="card-actions">
-        <button class="btn-edit" onclick="openEditModal(${listing.id})">✏ Edit</button>
+        <button class="btn-edit"   onclick="openEditModal(${listing.id})">✏ Edit</button>
         <button class="btn-delete" onclick="deleteListing(${listing.id})">🗑 Delete</button>
        </div>`
     : (token ? `<button class="btn-watch" onclick="addToWatchlist(${listing.id}, this)">♡ Watchlist</button>` : '');
 
   return `
     <div class="card" data-listing-id="${listing.id}">
+      ${imageHtml}
       <span class="card-badge">${category}</span>
       <h3 class="card-title">${escapeHtml(listing.title)}</h3>
       <p class="card-description">${escapeHtml(desc)}</p>
@@ -296,7 +327,7 @@ async function openWatchlist() {
     }
 
     body.innerHTML = data.data.map((item) => `
-      <div class="watchlist-item" id="wl-${item.item_id}">
+      <div class="watchlist-item" id="wl-${item.listing_id}">
         <div class="watchlist-item-info">
           <span class="card-badge" style="margin-bottom:4px">${CATEGORIES[item.category_id] || 'Other'}</span>
           <h4 class="watchlist-item-title">${escapeHtml(item.title)}</h4>
@@ -486,32 +517,42 @@ async function handleRegister(e) {
 // ── Create listing ─────────────────────────────────────
 async function handleCreateListing(e) {
   e.preventDefault();
-  const title          = document.getElementById('listing-title').value.trim();
-  const description    = document.getElementById('listing-description').value.trim();
-  const price          = document.getElementById('listing-price').value;
-  const category_id    = document.getElementById('listing-category').value;
-  const condition = document.getElementById('listing-condition').value;
-  const errEl     = document.getElementById('listing-error');
-  const btn       = document.getElementById('listing-btn');
+  const title       = document.getElementById('listing-title').value.trim();
+  const description = document.getElementById('listing-description').value.trim();
+  const price       = document.getElementById('listing-price').value;
+  const category_id = document.getElementById('listing-category').value;
+  const condition   = document.getElementById('listing-condition').value || 'used';
+  const errEl       = document.getElementById('listing-error');
+  const btn         = document.getElementById('listing-btn');
 
   clearError(errEl);
   setLoading(btn, 'Posting...');
 
   try {
+    // Use FormData so multer can handle the image files
+    const fd = new FormData();
+    fd.append('title',       title);
+    fd.append('description', description);
+    fd.append('price',       price);
+    fd.append('category_id', category_id);
+    fd.append('condition',   condition);
+
+    const fileInput = document.getElementById('listing-images');
+    if (fileInput && fileInput.files.length) {
+      Array.from(fileInput.files).slice(0, 5).forEach((f) => fd.append('images', f));
+    }
+
     const res  = await fetch(`${API}/listings/add`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ title, description, price: parseFloat(price), category_id: parseInt(category_id), condition }),
+      headers: { Authorization: `Bearer ${token}` }, // no Content-Type — let browser set multipart boundary
+      body: fd,
     });
     const data = await res.json();
 
     if (!data.success) throw new Error(data.message);
 
     closeModal('listing-modal');
-    document.getElementById('listing-form').reset();
+    document.getElementById('image-preview').innerHTML = '';
     fetchListings();
     showToast('Listing posted successfully!', 'success');
   } catch (err) {
@@ -529,8 +570,12 @@ function openAuth(tab = 'login') {
 
 function openCreateListing() {
   if (!token) { openAuth('login'); return; }
+  document.getElementById('listing-form').reset();
+  document.getElementById('image-preview').innerHTML = '';
+  document.getElementById('img-upload-text').textContent = '📷 Choose images…';
   document.getElementById('listing-modal').classList.remove('hidden');
 }
+
 
 function closeModal(id) {
   document.getElementById(id).classList.add('hidden');
