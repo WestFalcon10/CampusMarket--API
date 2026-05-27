@@ -1,4 +1,5 @@
-const API = 'http://localhost:3000';
+// Use relative URL so it always hits whatever server served this page
+const API = '';
 
 const CATEGORIES = {
   1: 'Textbooks', 2: 'Electronics', 3: 'Furniture', 4: 'Clothing',
