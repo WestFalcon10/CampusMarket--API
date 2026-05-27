@@ -25,9 +25,8 @@
         </div>
         <div id="nav-user" class="nav-user hidden">
           <button class="btn btn-nav-secondary" onclick="openCreateListing()">+ Sell Item</button>
-          <button class="btn btn-nav-ghost" onclick="openMyListings()">📋 My Listings</button>
-          <button class="btn btn-nav-ghost" onclick="openMyOrders()">📦 Orders</button>
-          <button class="btn btn-nav-ghost" onclick="openWatchlist()">♡ Watchlist</button>
+
+          <!-- Notification bell -->
           <div class="bell-wrapper">
             <button class="bell-btn" id="bell-btn" onclick="toggleNotifications(event)">
               🔔
@@ -43,8 +42,52 @@
               </div>
             </div>
           </div>
-          <div class="user-chip" id="nav-username"></div>
-          <button class="btn btn-nav-ghost" onclick="logout()">Log Out</button>
+
+          <!-- Profile avatar + dropdown -->
+          <div class="profile-wrapper" id="profile-wrapper">
+            <button class="profile-avatar" id="profile-avatar-btn"
+                    onclick="toggleProfileDropdown(event)" title="Profile &amp; settings">
+              <span id="avatar-initial">?</span>
+            </button>
+            <div class="profile-dropdown hidden" id="profile-dropdown">
+
+              <!-- Header: avatar + name/email/university -->
+              <div class="dropdown-header">
+                <div class="dropdown-avatar-lg" id="dropdown-avatar-lg">?</div>
+                <div class="dropdown-user-info">
+                  <div class="dropdown-name"  id="dropdown-name"></div>
+                  <div class="dropdown-email" id="dropdown-email"></div>
+                  <div class="dropdown-univ"  id="dropdown-univ"></div>
+                </div>
+              </div>
+
+              <!-- Stats row -->
+              <div class="dropdown-stats">
+                <div class="dstat">
+                  <span id="dp-listings">—</span>
+                  <span>Listings</span>
+                </div>
+                <div class="dstat-sep"></div>
+                <div class="dstat">
+                  <span id="dp-orders">—</span>
+                  <span>Completed</span>
+                </div>
+                <div class="dstat-sep"></div>
+                <div class="dstat">
+                  <span id="dp-since">—</span>
+                  <span>Since</span>
+                </div>
+              </div>
+
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" onclick="closeProfileDropdown();openEditProfile()">👤 Edit Profile</button>
+              <button class="dropdown-item" onclick="closeProfileDropdown();openMyListings()">📋 My Listings</button>
+              <button class="dropdown-item" onclick="closeProfileDropdown();openMyOrders()">📦 My Orders</button>
+              <button class="dropdown-item" onclick="closeProfileDropdown();openWatchlist()">❤️ My Watchlist</button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item dropdown-item-danger" onclick="logout()">🚪 Log Out</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -301,6 +344,30 @@
       <div id="watchlist-body">
         <div class="loading-state"><div class="spinner"></div><p>Loading...</p></div>
       </div>
+    </div>
+  </div>
+
+  <!-- EDIT PROFILE MODAL -->
+  <div id="profile-modal" class="modal-overlay hidden" onclick="closeModalOnOverlay(event, 'profile-modal')">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('profile-modal')">&times;</button>
+      <h2 class="modal-title">Edit Profile 👤</h2>
+      <form id="profile-form" onsubmit="handleEditProfile(event)">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="profile-fullname" placeholder="Jane Smith" required />
+        </div>
+        <div class="form-group">
+          <label>University</label>
+          <input type="text" id="profile-university" placeholder="e.g. University of Auckland" required />
+        </div>
+        <div class="form-group">
+          <label>Phone <span class="label-hint">(optional)</span></label>
+          <input type="tel" id="profile-phone" placeholder="+1 234 567 8900" />
+        </div>
+        <div id="profile-error" class="form-error hidden"></div>
+        <button type="submit" class="btn btn-primary btn-full" id="profile-btn">Save Changes</button>
+      </form>
     </div>
   </div>
 

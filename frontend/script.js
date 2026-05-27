@@ -24,9 +24,10 @@ let token           = localStorage.getItem('cm_token') || null;
 let currentUser     = JSON.parse(localStorage.getItem('cm_user') || 'null');
 let allListings     = [];
 let myListingsCache = {}; // id → listing, for edit modal lookup when main grid not loaded
-let pendingBuyId    = null; // listing id staged in the buy modal
-let ordersData      = [];   // cached orders for the orders modal
-let currentOrderTab = 'buying';
+let pendingBuyId        = null;
+let ordersData          = [];
+let currentOrderTab     = 'buying';
+let profileDropdownOpen = false;
 
 // ── Init ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -63,21 +64,51 @@ document.addEventListener('DOMContentLoaded', () => {
 function updateNavbar() {
   const guest = document.getElementById('nav-guest');
   const user  = document.getElementById('nav-user');
-  const name  = document.getElementById('nav-username');
 
   if (token && currentUser) {
     guest.classList.add('hidden');
     user.classList.remove('hidden');
-    name.textContent = `Hi, ${currentUser.full_name.split(' ')[0]} 👋`;
+    setAvatarUI(currentUser);
     if (!notifPollInterval) startNotifPolling();
   } else {
     guest.classList.remove('hidden');
     user.classList.add('hidden');
     stopNotifPolling();
+    closeProfileDropdown();
   }
 }
 
+function setAvatarUI(u) {
+  const initial = (u.full_name || '?')[0].toUpperCase();
+  const color   = nameToColor(u.full_name || '');
+
+  const btn  = document.getElementById('profile-avatar-btn');
+  const span = document.getElementById('avatar-initial');
+  const lgAv = document.getElementById('dropdown-avatar-lg');
+  if (btn)  btn.style.background = color;
+  if (span) span.textContent     = initial;
+  if (lgAv) { lgAv.textContent = initial; lgAv.style.background = color; }
+
+  const el = (id) => document.getElementById(id);
+  if (el('dropdown-name'))  el('dropdown-name').textContent  = u.full_name  || '';
+  if (el('dropdown-email')) el('dropdown-email').textContent = u.email      || '';
+  if (el('dropdown-univ'))  el('dropdown-univ').textContent  = u.university || '';
+}
+
+function nameToColor(name) {
+  const palette = [
+    '#4F46E5','#7C3AED','#DB2777','#D97706',
+    '#059669','#0891B2','#DC2626','#0284C7',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return palette[Math.abs(hash) % palette.length];
+}
+
 function logout() {
+  closeProfileDropdown();
   token = null;
   currentUser = null;
   localStorage.removeItem('cm_token');
@@ -86,6 +117,90 @@ function logout() {
   updateNavbar();
   fetchListings();
   showToast('Logged out successfully');
+}
+
+// ── Profile dropdown ──────────────────────────────────
+function toggleProfileDropdown(e) {
+  e.stopPropagation();
+  profileDropdownOpen = !profileDropdownOpen;
+  document.getElementById('profile-dropdown').classList.toggle('hidden', !profileDropdownOpen);
+  if (profileDropdownOpen) loadProfileStats();
+}
+
+function closeProfileDropdown() {
+  profileDropdownOpen = false;
+  document.getElementById('profile-dropdown')?.classList.add('hidden');
+}
+
+async function loadProfileStats() {
+  if (!token) return;
+  try {
+    const res  = await fetch(`${API}/users/profile`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    if (!data.success) return;
+    const p = data.data;
+    const el = (id) => document.getElementById(id);
+    if (el('dp-listings')) el('dp-listings').textContent = p.active_listings  ?? '—';
+    if (el('dp-orders'))   el('dp-orders').textContent   = p.completed_orders ?? '—';
+    if (el('dp-since'))    el('dp-since').textContent    = p.created_at
+      ? new Date(p.created_at).getFullYear() : '—';
+    // Refresh university in header (may have been updated)
+    if (el('dropdown-univ')) el('dropdown-univ').textContent = p.university || '';
+  } catch (_) {}
+}
+
+// ── Edit Profile modal ────────────────────────────────
+async function openEditProfile() {
+  if (!token) { openAuth('login'); return; }
+
+  // Pre-fill from localStorage
+  document.getElementById('profile-fullname').value  = currentUser.full_name  || '';
+  document.getElementById('profile-university').value = currentUser.university || '';
+  document.getElementById('profile-phone').value      = '';
+
+  // Fetch phone (not stored in localStorage)
+  try {
+    const res  = await fetch(`${API}/users/profile`, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    if (data.success) document.getElementById('profile-phone').value = data.data.phone || '';
+  } catch (_) {}
+
+  clearError(document.getElementById('profile-error'));
+  document.getElementById('profile-modal').classList.remove('hidden');
+}
+
+async function handleEditProfile(e) {
+  e.preventDefault();
+  const full_name  = document.getElementById('profile-fullname').value.trim();
+  const university = document.getElementById('profile-university').value.trim();
+  const phone      = document.getElementById('profile-phone').value.trim();
+  const errEl      = document.getElementById('profile-error');
+  const btn        = document.getElementById('profile-btn');
+
+  clearError(errEl);
+  setLoading(btn, 'Saving…');
+
+  try {
+    const res  = await fetch(`${API}/users/profile`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ full_name, university, phone }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+
+    // Update local state & localStorage
+    currentUser = { ...currentUser, full_name: data.data.full_name, university: data.data.university };
+    localStorage.setItem('cm_user', JSON.stringify(currentUser));
+
+    closeModal('profile-modal');
+    setAvatarUI(currentUser);       // re-render avatar + dropdown header
+    showToast('Profile updated ✅', 'success');
+  } catch (err) {
+    showError(errEl, err.message || 'Could not update profile.');
+  } finally {
+    resetLoading(btn, 'Save Changes');
+  }
 }
 
 // ── Fetch listings ─────────────────────────────────────
@@ -343,6 +458,9 @@ document.addEventListener('click', (e) => {
       !document.getElementById('notif-dropdown')?.contains(e.target)) {
     notifOpen = false;
     document.getElementById('notif-dropdown')?.classList.add('hidden');
+  }
+  if (profileDropdownOpen && !document.getElementById('profile-wrapper')?.contains(e.target)) {
+    closeProfileDropdown();
   }
 });
 
