@@ -53,11 +53,23 @@
  *         description: Watchlist fetched successfully
  */
 const express = require('express');
-const router = express.Router();
-const pool = require('../src/config/db');
+const router  = express.Router();
+const { param, validationResult } = require('express-validator');
+const pool    = require('../src/config/db');
 const { authenticateToken } = require('../middleware/auth');
 
-router.post('/:listing_id', authenticateToken, async (req, res) => {
+const validateListingId = [
+  param('listing_id').isInt({ gt: 0 }).withMessage('listing_id must be a positive integer'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, data: null, message: errors.array()[0].msg });
+    }
+    next();
+  },
+];
+
+router.post('/:listing_id', authenticateToken, validateListingId, async (req, res) => {
   try {
     const { listing_id } = req.params;
     const user_id = req.user.id;
@@ -111,7 +123,7 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-router.delete('/:listing_id', authenticateToken, async (req, res) => {
+router.delete('/:listing_id', authenticateToken, validateListingId, async (req, res) => {
   try {
     const { listing_id } = req.params;
     const user_id = req.user.id;
