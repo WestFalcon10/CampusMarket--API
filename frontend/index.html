@@ -105,9 +105,9 @@
           <input type="text" id="search-keyword" class="search-input" placeholder="Search listings..." oninput="debounceSearch()" />
         </div>
         <div class="search-price">
-          <input type="number" id="search-min-price" class="price-input" placeholder="Min $" min="0" oninput="debounceSearch()" />
+          <input type="number" id="search-min-price" class="price-input" placeholder="Min $" min="0" oninput="debounceSearch()" onkeydown="if(['e','E','+','-'].includes(event.key)) event.preventDefault()" />
           <span class="price-sep">—</span>
-          <input type="number" id="search-max-price" class="price-input" placeholder="Max $" min="0" oninput="debounceSearch()" />
+          <input type="number" id="search-max-price" class="price-input" placeholder="Max $" min="0" oninput="debounceSearch()" onkeydown="if(['e','E','+','-'].includes(event.key)) event.preventDefault()" />
         </div>
         <button class="search-btn" onclick="fetchListings()">Search</button>
       </div>
