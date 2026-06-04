@@ -115,6 +115,9 @@
     <div class="order-badge" id="order-badge" style="display:none">
       Order <span id="order-id-text"></span> is pending confirmation
     </div>
+    <div class="order-badge" id="payment-method-badge" style="display:none; margin-top: 16px;">
+      Payment method: <span id="payment-method-text">Card</span>
+    </div>
 
     <a href="/" class="btn btn-primary">← Back to Marketplace</a>
 
@@ -124,9 +127,41 @@
   <script>
     const params  = new URLSearchParams(window.location.search);
     const orderId = params.get('order_id');
+    const orderBadge = document.getElementById('order-badge');
+    const methodBadge = document.getElementById('payment-method-badge');
+    const methodText  = document.getElementById('payment-method-text');
+
     if (orderId) {
       document.getElementById('order-id-text').textContent = `#${orderId}`;
-      document.getElementById('order-badge').style.display = 'inline-block';
+      orderBadge.style.display = 'inline-block';
+      methodBadge.style.display = 'inline-block';
+    }
+
+    const token = localStorage.getItem('cm_token');
+    let API = '';
+    if (!API) {
+      if (location.protocol === 'file:') {
+        API = 'http://localhost:3000';
+      } else if ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') && location.port && location.port !== '3000') {
+        API = 'http://localhost:3000';
+      } else {
+        API = location.origin;
+      }
+    }
+
+    if (token && orderId) {
+      fetch(`${API}/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => res.ok ? res.json() : Promise.reject(new Error('Unable to load order')))
+        .then((data) => {
+          if (data.success && data.data?.payment_method) {
+            methodText.textContent = data.data.payment_method;
+          }
+        })
+        .catch(() => {
+          // Keep default card label when fetch fails or user is not authenticated.
+        });
     }
   </script>
 </body>

@@ -1,5 +1,18 @@
-// Use relative URL so it always hits whatever server served this page
-const API = '';
+// Use relative URL so it always hits whatever server served this page.
+// If running the frontend served by the API, `location.origin` is correct.
+// If opening the HTML file directly (file://), fallback to http://localhost:3000.
+let API = '';
+if (!API) {
+  // If opened from the filesystem or served by a dev static server (e.g. Live Server on :5500),
+  // default API to the backend at localhost:3000 so API calls go to the Express server.
+  if (location.protocol === 'file:') {
+    API = 'http://localhost:3000';
+  } else if ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') && location.port && location.port !== '3000') {
+    API = 'http://localhost:3000';
+  } else {
+    API = location.origin;
+  }
+}
 
 // Stripe publishable key (used if switching to Stripe.js Elements in future)
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51Tbik93zThIk0yq4IreCFMlM6xCx24DvO5YidfaBCGJkcVVgNmFzhfTjSFzApJBqWcocxK0A39mQLWUWzbGrJs1J00OYUGkzwp';
@@ -540,6 +553,7 @@ function openBuyModal(listingId) {
   document.getElementById('buy-item-title').textContent  = listing.title;
   document.getElementById('buy-item-seller').textContent = `Sold by ${listing.seller_name || 'Unknown'}`;
   document.getElementById('buy-item-price').textContent  = `$${parseFloat(listing.price).toFixed(2)}`;
+  document.getElementById('buy-item-method').textContent = 'Payment method: Card';
 
   const thumbEl = document.getElementById('buy-item-thumb');
   if (listing.images && listing.images.length > 0) {
@@ -565,7 +579,7 @@ async function confirmPurchase() {
     const res  = await fetch(`${API}/payments/create-checkout`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body:    JSON.stringify({ listing_id: pendingBuyId }),
+      body:    JSON.stringify({ listing_id: pendingBuyId, payment_method: 'card' }),
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.message);
@@ -657,12 +671,15 @@ function renderOrderRow(order) {
     actions = `<button class="btn-order-action btn-order-cancel" onclick="updateOrderStatus(${order.id},'cancelled')">✕ Cancel</button>`;
   }
 
+  const methodLabel = order.payment_method ? `<div class="order-meta">Payment: ${escapeHtml(order.payment_method)}</div>` : '';
+
   return `
     <div class="order-row" id="order-${order.id}">
       ${thumb}
       <div class="order-info">
         <div class="order-title">${escapeHtml(order.listing_title || 'Deleted listing')}</div>
         <div class="order-meta">${counterparty} · ${date}</div>
+        ${methodLabel}
       </div>
       <div class="order-right">
         <span class="order-price">$${price}</span>
@@ -932,14 +949,28 @@ async function handleRegister(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ full_name, email, password, university }),
     });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message);
+    // Read raw text once (avoid double-reading the body stream)
+    const raw = await res.text();
+    let data;
+    if (raw) {
+      try {
+        data = JSON.parse(raw);
+      } catch (parseErr) {
+        console.error('Failed to parse JSON response from /users/register', res.status, raw, parseErr);
+        throw new Error(raw || `Unexpected response status ${res.status}`);
+      }
+    }
+    if (!data || !data.success) throw new Error((data && data.message) || raw || `Unexpected response status ${res.status}`);
 
     showToast('Account created! Please log in. 🎉', 'success');
     switchTab('login');
     document.getElementById('login-email').value = email;
   } catch (err) {
-    showError(errEl, err.message || 'Registration failed. Please try again.');
+    let msg = err.message || 'Registration failed. Please try again.';
+    if (msg.includes('405')) {
+      msg = 'Method not allowed (405). Check that the API base is correct and the server accepts POST /users/register.';
+    }
+    showError(errEl, msg);
   } finally {
     resetLoading(btn, 'Create Account');
   }
